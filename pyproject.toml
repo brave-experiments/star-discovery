@@ -1,0 +1,23 @@
+[project]
+name = "star-discovery"
+readme = "README.md"
+version = "0.0.1"
+dependencies = [
+    "beautifulsoup4"
+]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "mypy",
+    "pylint"
+]
+
+[tool.black]
+line-length = 88
+
+[tool.setuptools.packages.find]
+where = ['src']
+
+[project.scripts]
+star-discovery = "star_discovery.cli.parser:run"
