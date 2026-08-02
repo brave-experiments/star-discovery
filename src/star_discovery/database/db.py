@@ -4,13 +4,13 @@ from pathlib import Path
 import pickle
 from typing import ClassVar
 
-from star_discovery.database.input import InputDocument
+from star_discovery.documents.input import Document
 
 
 class StarDiscoveryDatabase:
     DEFAULT_FILENAME: ClassVar[str] = "star-discovery.database"
 
-    inputs: list[InputDocument] = []
+    inputs: list[Document] = []
 
     @classmethod
     def load(cls, path: Path) -> StarDiscoveryDatabase | None:
