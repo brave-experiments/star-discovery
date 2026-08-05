@@ -29,7 +29,9 @@ mypy-extensions==1.1.0
     #   black
     #   mypy
 packaging==26.2
-    # via black
+    # via
+    #   black
+    #   star-discovery (pyproject.toml)
 pathspec==1.1.1
     # via
     #   black

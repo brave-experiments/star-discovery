@@ -10,7 +10,8 @@ disable=missing-function-docstring,
         missing-class-docstring,
         unused-variable,
         consider-alternative-union-syntax,
-        no-self-use
+        no-self-use,
+        duplicate-code
 
 [MASTER]
 # Informational messages ("I") should make Pylint execution fail (non-0 program return code):

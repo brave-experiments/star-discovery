@@ -1,83 +1,126 @@
 from __future__ import annotations
 
-from argparse import Namespace
+import argparse
+from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from pathlib import Path
 
 from bs4 import BeautifulSoup
 
-from star_discovery.database.db import StarDiscoveryDatabase
+from star_discovery.bs_helpers import html_desc
+from star_discovery.cli.commands.common import (
+    CommonArgs,
+    add_db_arg,
+    add_logging_args,
+    validate as common_validate,
+)
+
+if TYPE_CHECKING:
+    from star_discovery.logging import Logger
+    from star_discovery.inputs.db import Database
+
+THRESHOLD_MINIMUM = 2
+SUBCOMMAND_NAME = "consume"
 
 
 @dataclass
-class ConsumeArgs:
-    database_path: Path
-    database: StarDiscoveryDatabase
-    input: list[Path]
+class InputFile:
+    path: Path
+    data: BeautifulSoup
 
 
-def _create_db_or_throw(db_path: Path) -> StarDiscoveryDatabase:
-    if not (db_instance := StarDiscoveryDatabase.create(db_path)):
-        raise ValueError(
-            f"Invalid path, unable to create a database file at {db_path}."
-        )
-    return db_instance
+@dataclass
+class ConsumeArgs(CommonArgs):
+    inputs: list[InputFile]
+    threshold: int
+
+    def __init__(
+        self, common_args: CommonArgs, inputs: list[InputFile], threshold: int
+    ):
+        super().__init__(common_args.db_path, common_args.database, common_args.logger)
+        self.inputs = inputs
+        self.threshold = threshold
 
 
-def _load_db_or_throw(db_path: Path) -> StarDiscoveryDatabase:
-    if not (db_instance := StarDiscoveryDatabase.load(db_path)):
-        raise ValueError(
-            f"Invalid database path, file at {db_path} is not a valid" "database file."
-        )
-    return db_instance
+def add_subcommand(subparser: argparse._SubParsersAction[ArgumentParser]) -> None:
+    consume_parser = subparser.add_parser(
+        SUBCOMMAND_NAME,
+        help="Read input files into a star-discovery database.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    consume_parser.add_argument(
+        "-i",
+        "--input",
+        help="Paths to input files (HTML documents)",
+        nargs="*",
+        required=True,
+        type=Path,
+    )
+    consume_parser.add_argument(
+        "-t",
+        "--threshold",
+        default=2,
+        help="The threshold to use when simulating key-recovery (i.e., the K "
+        "in the STAR recovery algorithm)",
+        type=int,
+    )
+    consume_parser.set_defaults(
+        run_func=run,
+        subcommand_name=SUBCOMMAND_NAME,
+        validate_func=validate,
+    )
+    add_db_arg(consume_parser)
+    add_logging_args(consume_parser)
 
 
-def validate_db_path_arg(db_path_arg: Path) -> StarDiscoveryDatabase:
-    """Determine what the path for the database should be, given the --database
-    argument.
-
-    1. If a file exists at the given path, check if that points to a valid
-    existing database file. If so, use that database object, if not, raise
-    an exception.
-    2. If a directory exists at the given path, then:
-        - see if a database file exists in the directory at star-discovery.data.
-          if so, check if thats a valid database and use it, or throw
-          an exception.
-        - if not, see if we can create a star-discovery.data file in the
-        directory. If so, create a database there. If not, throw an exception.
-    3. If no file and no directory exists at the given path, see if we can
-       create a star-discovery database at the path. If so, use that
-       database. If not, throw an exception."""
-
-    # Check for case 1 above
-    if db_path_arg.is_file():
-        return _load_db_or_throw(db_path_arg)
-
-    # Else check for case 2 above
-    if db_path_arg.is_dir():
-        db_path_in_dir = db_path_arg / StarDiscoveryDatabase.DEFAULT_FILENAME
-        if db_path_in_dir.is_file():
-            return _load_db_or_throw(db_path_in_dir)
-        return _create_db_or_throw(db_path_in_dir)
-
-    # Otherwise, we're at case three above
-    return _create_db_or_throw(db_path_arg)
-
-
-def validate_input_arg(input_paths: list[Path]) -> None:
+def validate_input_arg(input_paths: list[Path]) -> list[InputFile]:
+    parsed_inputs: list[InputFile] = []
     for input_path in input_paths:
         try:
-            BeautifulSoup(input_path.read_text())
-        except Exception as exc:
-            err = ValueError(f'Invalid path for --input argument: "{input_path}"')
-            raise err from exc
+            html_text = input_path.read_text()
+        except FileNotFoundError:
+            # pylint: disable-next=raise-missing-from
+            raise ValueError(f'Invalid path for --input argument: "{input_path}"')
+
+        try:
+            bs = BeautifulSoup(html_text, features="html.parser")
+            parsed_inputs.append(InputFile(input_path, bs))
+        except ValueError:
+            # pylint: disable-next=raise-missing-from
+            raise ValueError(f'Invalid path for --input argument: "{input_path}"')
+    return parsed_inputs
+
+
+def validate_threshold_arg(threshold: int) -> int:
+    if threshold < THRESHOLD_MINIMUM:
+        raise ValueError(
+            f"Invalid value for --threshold. Value must be at least {THRESHOLD_MINIMUM}"
+        )
+    return threshold
 
 
 def validate(args: Namespace) -> ConsumeArgs:
-    db_path = args.database
-    database_instance = validate_db_path_arg(db_path)
+    threshold = validate_threshold_arg(int(args.threshold))
+
+    common_args = common_validate(args, can_create_db=True, threshold=threshold)
 
     input_paths = args.input
-    validate_input_arg(input_paths)
+    input_data = validate_input_arg(input_paths)
 
-    return ConsumeArgs(db_path, database_instance, input_paths)
+    return ConsumeArgs(common_args, input_data, threshold)
+
+
+def run(args: ConsumeArgs) -> None:
+    db = args.database
+    logger = args.logger
+    logger.info(f"Starting with database: {db}.")
+
+    for input_file in args.inputs:
+        input_path = input_file.path.absolute()
+        input_html = input_file.data
+        input_desc = html_desc(input_html, str(input_path))
+        db.add_document(input_html, input_desc)
+
+    logger.info(f"Completed with database: {db}.")
+    print(db.documents()[0].to_html().decode(True))

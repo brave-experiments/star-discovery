@@ -1,42 +1,45 @@
 from __future__ import annotations
 
-from argparse import Namespace
+import argparse
+from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
-from pathlib import Path
 
-from star_discovery.database.db import StarDiscoveryDatabase
+from star_discovery.cli.commands.common import (
+    CommonArgs,
+    add_db_arg,
+    add_logging_args,
+    validate as common_validate,
+)
+
+SUBCOMMAND_NAME = "query"
 
 
 @dataclass
-class QueryArgs:
-    database_path: Path
-    database: StarDiscoveryDatabase | None
+class QueryArgs(CommonArgs):
+
+    def __init__(self, common_args: CommonArgs):
+        super().__init__(common_args.db_path, common_args.database, common_args.logger)
 
 
-def validate_db_path_arg(db_path_arg: Path) -> StarDiscoveryDatabase:
-    """If the given --database argument points to a file, then try
-    loading the database file from that path. If it points to a directory,
-    try loading a database a file in that directory with the default
-    database name. Otherwise, its an invalid argument, so we throw."""
-    if db_path_arg.is_file():
-        if not (db_instance := StarDiscoveryDatabase.load(db_path_arg)):
-            raise ValueError(
-                f'Invalid --database arg. "{db_path_arg}" is not a valid '
-                "database file."
-            )
-        return db_instance
-
-    if db_path_arg.is_dir():
-        db_in_dir_path = db_path_arg / StarDiscoveryDatabase.DEFAULT_FILENAME
-        if not (db_instance := StarDiscoveryDatabase.load(db_in_dir_path)):
-            raise ValueError(
-                "Invalid --database arg. Could not load a database from "
-                f'"{db_in_dir_path}".'
-            )
-        return db_instance
-
-    raise ValueError(f'Invalid --database arg. No file or directory at "{db_path_arg}"')
+def add_subcommand(subparser: argparse._SubParsersAction[ArgumentParser]) -> None:
+    query_parser = subparser.add_parser(
+        SUBCOMMAND_NAME,
+        help="Query information from a star-discovery database.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    query_parser.set_defaults(
+        run_func=run,
+        subcommand_name=SUBCOMMAND_NAME,
+        validate_func=validate,
+    )
+    add_db_arg(query_parser)
+    add_logging_args(query_parser)
 
 
 def validate(args: Namespace) -> QueryArgs:
-    return QueryArgs(args.database, None)
+    common_args = common_validate(args, can_create_db=False)
+    return QueryArgs(common_args)
+
+
+def run(args: QueryArgs) -> None:
+    pass

@@ -1,0 +1,12 @@
+"""Summary of the class taxonomy for recoverable "things" in STAR-Discovery
+- BaseNode (abstract)
+  - HTMLBaseNode (abstract)
+    - HTMLElementBaseNode (abstract)
+      - HTMLElementRootNode
+      - HTMLElementBodyNode
+    - HTMLTextNode
+  - AttrKeyBaseNode (abstract)
+    - AttrKeyBasicNode
+    - AttrKeyHTMLClassNode
+  - AttrValueBasicNode
+  - AttrValueHTMLClassNode"""

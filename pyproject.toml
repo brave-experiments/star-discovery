@@ -3,7 +3,8 @@ name = "star-discovery"
 readme = "README.md"
 version = "0.0.1"
 dependencies = [
-    "beautifulsoup4"
+    "beautifulsoup4",
+    "packaging"
 ]
 
 [project.optional-dependencies]
