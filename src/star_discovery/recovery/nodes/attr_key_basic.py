@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from star_discovery.recovery.abc.attr_key_base import AttrKeyBaseNode
-from star_discovery.recovery.attr_value_basic import AttrValueBasicNode
+from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
+from star_discovery.recovery.nodes.attr_value_basic import AttrValueBasicNode
 
 if TYPE_CHECKING:
     from bs4.element import Tag
 
-    from star_discovery.types import RecoveredKeys, RevealResult, NodeCount
-    from star_discovery.recovery.types import HTMLParentNode
+    from star_discovery.recovery.type_aliases import RecoveredKey
+    from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
+    from star_discovery.summaries import RevealResult, NodeCount
 
 
 class AttrKeyBasicNode(AttrKeyBaseNode):
@@ -23,7 +24,7 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
 
     _attr_value_node: AttrValueBasicNode | None
 
-    def __init__(self, parent: HTMLParentNode, attr_key: str, attr_value: str):
+    def __init__(self, parent: HTMLElementBaseNode, attr_key: str, attr_value: str):
         self._attr_value = attr_value
         super().__init__(parent, attr_key)
 
@@ -38,7 +39,7 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
             self._attr_value_node.add_to_html(item)
         return True
 
-    def reveal(self, keys: RecoveredKeys) -> RevealResult:
+    def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
         success, result = self._reveal_self(keys)
         if not success:
             return result

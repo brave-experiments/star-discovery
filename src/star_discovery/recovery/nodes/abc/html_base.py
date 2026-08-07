@@ -3,10 +3,10 @@ from __future__ import annotations
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from star_discovery.recovery.abc.base import BaseNode
+from star_discovery.recovery.nodes.abc.base import BaseNode
 
 if TYPE_CHECKING:
-    from star_discovery.recovery.types import HTMLParentNode
+    from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
 
 
 class HTMLBaseNode(BaseNode, ABC):
@@ -19,7 +19,7 @@ class HTMLBaseNode(BaseNode, ABC):
     """The location of this page element (HTML element, text node)
     amongst its peers within its parent node."""
 
-    def __init__(self, parent: HTMLParentNode | None, index: int = 0):
+    def __init__(self, parent: HTMLElementBaseNode | None, index: int = 0):
         self._index = index
         super().__init__(parent)
 

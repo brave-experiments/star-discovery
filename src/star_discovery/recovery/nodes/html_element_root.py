@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 from bs4.element import Tag
 
 from star_discovery.bs_helpers import tag_name
-from star_discovery.recovery.html_element_body import HTMLElementBaseNode
-from star_discovery.types import NodeCount
+from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
+from star_discovery.summaries import NodeCount
 
 if TYPE_CHECKING:
     from bs4 import BeautifulSoup
 
-    from star_discovery.recovery.types import BSItem
+    from star_discovery.recovery.type_aliases import BSItem
 
 
 class HTMLElementRootNode(HTMLElementBaseNode):
@@ -21,7 +20,7 @@ class HTMLElementRootNode(HTMLElementBaseNode):
     def count_for_source_item(cls, item: BSItem) -> NodeCount:
         assert isinstance(item, Tag)
         count: NodeCount = NodeCount()
-        count.add_root_node(tag_name(item))
+        count.add_html_node(tag_name(item))
         super_count = super(HTMLElementRootNode, cls).count_for_source_item(item)
         return count.combine(super_count)
 
@@ -31,12 +30,11 @@ class HTMLElementRootNode(HTMLElementBaseNode):
     def as_html_elm_root_node(self) -> HTMLElementRootNode | None:
         return self
 
-    @cached_property
-    def source_count(self) -> NodeCount:
-        return HTMLElementRootNode.count_for_source_item(self._elm)
-
     def recovered_count(self) -> NodeCount | None:
         if not (count := super().count_for_recovered_doc()):
             return None
-        count.add_root_node(tag_name(self._elm))
+        count.add_html_node(tag_name(self._elm))
         return count
+
+    def source_count(self) -> NodeCount:
+        return HTMLElementRootNode.count_for_source_item(self._elm)

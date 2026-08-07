@@ -1,76 +1,86 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 
-from star_discovery.recovery.abc.base import BaseNode
-from star_discovery.recovery.html_element_root import HTMLElementRootNode
-from star_discovery.types import RevealResult
+from star_discovery.summaries import NodeCount, RevealResult
+from star_discovery.recovery.document import create, Document as RecoveryDocument
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from star_discovery.logging import Logger
-    from star_discovery.types import KeyMaterial, RecoveredKey
+    from star_discovery.recovery.type_aliases import RecoveredKey
+
+
+@dataclass
+class RecoverySummary:
+    recovered: NodeCount
+    source: NodeCount
+
+    def html_node_recovery_pct(self) -> float:
+        return self.recovered.html_node_count() / float(self.source.html_node_count())
+
+    def text_node_recovery_pct(self) -> float:
+        return self.recovered.text_node_count() / float(self.source.text_node_count())
+
+    def attr_name_recovery_pct(self) -> float:
+        return self.recovered.attr_name_count() / float(self.source.attr_name_count())
+
+    def attr_value_recovery_pct(self) -> float:
+        return self.recovered.attr_value_count() / float(self.source.attr_value_count())
+
+    def html_class_recovery_pct(self) -> float:
+        return self.recovered.html_class_count() / float(self.source.html_class_count())
 
 
 class Document:
-    desc: str
-    _bs_doc: BeautifulSoup
-    _root_node: HTMLElementRootNode
+    path: Path
+    timestamp: datetime
+    _recovery_doc: RecoveryDocument
 
-    _frontier_nodes: frozenset[BaseNode] = frozenset()
-    """Track all leaf nodes that haven't been recovered.  Note
-    that this will grow (for a while) as more of the document is
-    recovered, since initially the entire document is uncovered, and
-    so the "frontier" is the root of the tree."""
-
-    _recovered_nodes: set[BaseNode] = set()
-    """All nodes in the document that have been recovered so far.  Note that
-    this is mostly redundant, since these are already walkable through
-    the `_root_node` property."""
-
-    def __init__(self, bs_doc: BeautifulSoup, desc: str):
-        self.desc = desc
-        self._bs_doc = bs_doc
-
-        root_tag = self._bs_doc.find("html", recursive=False)
-        assert root_tag is not None
-
-        self._root_node = HTMLElementRootNode(root_tag)
-        self._frontier_nodes = frozenset((self._root_node,))
+    def __init__(self, input_doc: BeautifulSoup, path: Path):
+        self.path = path
+        self.timestamp = datetime.now()
+        self._recovery_doc = create(str(path), input_doc)
 
     def __str__(self) -> str:
-        num_nodes = self._root_node.source_count.count()
-        return f"Document: '{self.desc}' ({num_nodes:d} nodes)"
+        return f"Input Document: {self.path} @ {self.timestamp}"
 
-    def to_html(self) -> BeautifulSoup:
-        doc = BeautifulSoup()
-        self._root_node.add_to_html(doc)
-        return doc
+    def recovery_desc(self) -> str:
+        return (
+            f"{self.recovered_count().total()} of "
+            f"{self.source_count().total()} nodes recovered "
+            f"({self.pct_recovered()}%)"
+        )
 
-    def reveal(
-        self, keys: frozenset[RecoveredKey], logger: Logger | None = None
-    ) -> RevealResult:
-        result = RevealResult()
-        for node in self._frontier_nodes:
-            node_result = node.reveal(keys)
-            result.merge_in(node_result)
-        self._frontier_nodes = frozenset(result.frontier)
-        self._recovered_nodes |= result.recovered
-        if logger:
-            logger.debug(
-                f"reveal result for {self.desc} -> "
-                f"total recovered nodes: {self.num_recovered_nodes()}, "
-                f"newly recovered nodes: {len(result.recovered)}, "
-                f"newly frontier nodes: {len(result.frontier)}"
-            )
-        return result
+    def summary(self) -> RecoverySummary:
+        return RecoverySummary(self.recovered_count(), self.source_count())
+
+    def reveal(self, keys: frozenset[RecoveredKey], logger: Logger) -> RevealResult:
+        return self._recovery_doc.reveal(keys, logger)
+
+    def recovered_html(self) -> BeautifulSoup:
+        return self._recovery_doc.to_html()
 
     def num_frontier_nodes(self) -> int:
-        return len(self._frontier_nodes)
+        return self._recovery_doc.num_frontier_nodes()
 
     def num_recovered_nodes(self) -> int:
-        return len(self._recovered_nodes)
+        return self._recovery_doc.num_recovered_nodes()
 
     def num_known_nodes(self) -> int:
-        return self.num_frontier_nodes() + self.num_recovered_nodes()
+        return self._recovery_doc.num_known_nodes()
+
+    def recovered_count(self) -> NodeCount:
+        return self._recovery_doc.recovered_count()
+
+    def source_count(self) -> NodeCount:
+        return self._recovery_doc.source_count()
+
+    def pct_recovered(self) -> float:
+        total_pct = self.recovered_count().total() / self.source_count().total()
+        return round(total_pct, 2)

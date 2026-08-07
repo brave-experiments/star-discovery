@@ -40,11 +40,9 @@ class CommonArgs:
 
 def add_db_arg(sub_parser: ArgumentParser) -> ArgumentParser:
     sub_parser.add_argument(
-        "-d",
-        "--database",
+        "database_path",
         help="Either the path to an existing star-discovery database, or the "
         "path to create a new database.",
-        required=True,
         type=Path,
     )
     return sub_parser
@@ -141,7 +139,7 @@ def validate_db_instance(db: Database, threshold: int | None = None) -> None:
             f"library version: {lib_version}."
         )
 
-    if db.threshold != threshold:
+    if threshold and db.threshold != threshold:
         raise ValueError(
             f"Threshold mismatch. DB was created with threshold {db.threshold}, "
             f"but expect threshold of {threshold}."
@@ -155,7 +153,7 @@ def validate_logging_arg(level: str) -> Logger:
 def validate(
     args: Namespace, can_create_db: bool = True, threshold: int | None = None
 ) -> CommonArgs:
-    db_path_arg = args.database
+    db_path_arg = args.database_path
     if can_create_db:
         assert threshold
         db_path, db_instance = validate_or_create_db_path_arg(db_path_arg, threshold)
@@ -166,5 +164,4 @@ def validate(
 
     log_level = args.log_level
     logger = validate_logging_arg(log_level)
-    db_instance.logger = logger
     return CommonArgs(db_path, db_instance, logger)

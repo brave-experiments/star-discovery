@@ -4,13 +4,13 @@ from typing import cast, TYPE_CHECKING
 
 from bs4.element import AttributeValueList
 
-from star_discovery.recovery.abc.base import BaseNode
+from star_discovery.recovery.nodes.abc.base import BaseNode
 
 if TYPE_CHECKING:
     from bs4.element import Tag
 
-    from star_discovery.recovery.attr_key_html_class import AttrKeyHTMLClassNode
-    from star_discovery.types import NodeCount
+    from star_discovery.recovery.nodes.attr_key_html_class import AttrKeyHTMLClassNode
+    from star_discovery.summaries import NodeCount
 
 
 HTML_CLASS_ATTR_NAME = "class"

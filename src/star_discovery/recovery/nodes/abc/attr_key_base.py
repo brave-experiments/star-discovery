@@ -3,10 +3,10 @@ from __future__ import annotations
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from star_discovery.recovery.abc.base import BaseNode
+from star_discovery.recovery.nodes.abc.base import BaseNode
 
 if TYPE_CHECKING:
-    from star_discovery.recovery.types import HTMLParentNode
+    from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
 
 
 class AttrKeyBaseNode(BaseNode, ABC):
@@ -16,8 +16,8 @@ class AttrKeyBaseNode(BaseNode, ABC):
     values are tracked verbatim)."""
 
     _name: str
-    _parent: HTMLParentNode
+    _parent: HTMLElementBaseNode
 
-    def __init__(self, parent: HTMLParentNode, attr_key: str):
+    def __init__(self, parent: HTMLElementBaseNode, attr_key: str):
         self._value = attr_key
         super().__init__(parent)

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from star_discovery.recovery.abc.base import BaseNode
+from star_discovery.recovery.nodes.abc.base import BaseNode
 
 if TYPE_CHECKING:
     from bs4.element import Tag
 
-    from star_discovery.recovery.attr_key_basic import AttrKeyBasicNode
-    from star_discovery.types import NodeCount
+    from star_discovery.recovery.nodes.attr_key_basic import AttrKeyBasicNode
+    from star_discovery.summaries import NodeCount
 
 
 class AttrValueBasicNode(BaseNode):

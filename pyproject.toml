@@ -1,17 +1,21 @@
 [project]
 name = "star-discovery"
+authors = [{name = "Peter Snyder", email = "pes@brave.com"}]
+license = "MIT"
 readme = "README.md"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
     "beautifulsoup4",
-    "packaging"
+    "packaging",
+    "tabulate"
 ]
 
 [project.optional-dependencies]
 dev = [
     "black",
     "mypy",
-    "pylint"
+    "pylint",
+    "types-tabulate"
 ]
 
 [tool.black]

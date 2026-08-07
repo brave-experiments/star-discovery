@@ -20,6 +20,10 @@ def html_desc(html: BeautifulSoup, additional_desc: str | None = None) -> str:
     return desc
 
 
+def unrecovered_attr_name(attr_name: str) -> str:
+    return f"-@sd-{attr_name}"
+
+
 def tag_name(elm: Tag) -> str:
     if elm.namespace:
         return f"{elm.namespace}:{elm.name}"

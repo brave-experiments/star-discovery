@@ -1,19 +1,13 @@
+"""A collection of very light classes (mostly dataclasses) uses for summarizing
+changes and results."""
+
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import ClassVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from star_discovery.recovery.abc.base import BaseNode
-
-
-# Represents the path to a recoverable element in a input document,
-# similar to how a XPATH string describes the path to an item in an XML
-# document (though, dramatically simpler).
-type NodePathSegment = str
-type NodePath = str
-
-type KeyMaterial = NodePath
-type RecoveredKey = NodePath
-type RecoveredKeys = frozenset[RecoveredKey]
+    from star_discovery.recovery.nodes.abc.base import BaseNode
 
 
 def desc_some_nodes(nodes: set[BaseNode], num_items: int) -> str:
@@ -62,12 +56,18 @@ class RevealResult:
 
 @dataclass
 class NodeCount:
-    root_nodes: dict[str, int] = field(default_factory=dict)
+    _html_nodes_key: ClassVar[str] = "html_nodes"
+    _text_nodes_key: ClassVar[str] = "text_nodes"
+    _attr_names_key: ClassVar[str] = "attr_names"
+    _attr_values_key: ClassVar[str] = "attr_values"
+    _html_classes_key: ClassVar[str] = "html_classes"
+
     html_nodes: dict[str, int] = field(default_factory=dict)
     text_nodes: dict[str, int] = field(default_factory=dict)
     attr_names: dict[str, int] = field(default_factory=dict)
     attr_values: dict[str, int] = field(default_factory=dict)
     html_classes: dict[str, int] = field(default_factory=dict)
+    _cache: dict[str, int | None] = field(default_factory=dict, init=False)
 
     @staticmethod
     def inc_key(data: dict[str, int], key: str) -> int:
@@ -92,37 +92,81 @@ class NodeCount:
     def sum_dict(data: dict[str, int]) -> int:
         return sum(data.values())
 
-    def count(self) -> int:
+    def __post_init__(self) -> None:
+        self._cache = {
+            NodeCount._html_nodes_key: None,
+            NodeCount._text_nodes_key: None,
+            NodeCount._attr_names_key: None,
+            NodeCount._attr_values_key: None,
+            NodeCount._html_classes_key: None,
+        }
+
+    def total(self) -> int:
         return (
-            NodeCount.sum_dict(self.root_nodes)
-            + NodeCount.sum_dict(self.html_nodes)
-            + NodeCount.sum_dict(self.text_nodes)
-            + NodeCount.sum_dict(self.attr_names)
-            + NodeCount.sum_dict(self.attr_values)
-            + NodeCount.sum_dict(self.html_classes)
+            self.html_node_count()
+            + self.text_node_count()
+            + self.attr_name_count()
+            + self.attr_value_count()
+            + self.html_class_count()
         )
 
-    def add_root_node(self, tag_name: str) -> int:
-        return NodeCount.inc_key(self.root_nodes, tag_name)
-
     def add_html_node(self, tag_name: str) -> int:
+        self._cache[NodeCount._html_nodes_key] = None
         return NodeCount.inc_key(self.html_nodes, tag_name)
 
+    def html_node_count(self) -> int:
+        if (cached_value := self._cache[NodeCount._html_nodes_key]) is not None:
+            return cached_value
+        value = NodeCount.sum_dict(self.html_nodes)
+        self._cache[NodeCount._html_nodes_key] = value
+        return value
+
     def add_text_node(self, text: str) -> int:
+        self._cache[NodeCount._text_nodes_key] = None
         return NodeCount.inc_key(self.text_nodes, text)
 
+    def text_node_count(self) -> int:
+        if (cached_value := self._cache[NodeCount._text_nodes_key]) is not None:
+            return cached_value
+        value = NodeCount.sum_dict(self.text_nodes)
+        self._cache[NodeCount._text_nodes_key] = value
+        return value
+
     def add_attr_name(self, attr_name: str) -> int:
+        self._cache[NodeCount._attr_names_key] = None
         return NodeCount.inc_key(self.attr_names, attr_name)
 
+    def attr_name_count(self) -> int:
+        if (cached_value := self._cache[NodeCount._attr_names_key]) is not None:
+            return cached_value
+        value = NodeCount.sum_dict(self.attr_names)
+        self._cache[NodeCount._attr_names_key] = value
+        return value
+
     def add_attr_value(self, attr_value: str) -> int:
+        self._cache[NodeCount._attr_values_key] = None
         return NodeCount.inc_key(self.attr_values, attr_value)
 
+    def attr_value_count(self) -> int:
+        if (cached_value := self._cache[NodeCount._attr_values_key]) is not None:
+            return cached_value
+        value = NodeCount.sum_dict(self.attr_values)
+        self._cache[NodeCount._attr_values_key] = value
+        return value
+
     def add_html_class(self, html_class: str) -> int:
+        self._cache[NodeCount._html_classes_key] = None
         return NodeCount.inc_key(self.html_classes, html_class)
+
+    def html_class_count(self) -> int:
+        if (cached_value := self._cache[NodeCount._html_classes_key]) is not None:
+            return cached_value
+        value = NodeCount.sum_dict(self.html_classes)
+        self._cache[NodeCount._html_classes_key] = value
+        return value
 
     def combine(self, other: NodeCount) -> NodeCount:
         return NodeCount(
-            NodeCount.merge_dicts(self.root_nodes, other.root_nodes),
             NodeCount.merge_dicts(self.html_nodes, other.html_nodes),
             NodeCount.merge_dicts(self.text_nodes, other.text_nodes),
             NodeCount.merge_dicts(self.attr_names, other.attr_names),

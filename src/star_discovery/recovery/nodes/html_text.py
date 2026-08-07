@@ -5,13 +5,14 @@ from typing import TYPE_CHECKING
 
 from bs4.element import NavigableString
 
-from star_discovery.types import NodeCount
-from star_discovery.recovery.abc.html_base import HTMLBaseNode
+from star_discovery.summaries import NodeCount
+from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
 
 if TYPE_CHECKING:
     from bs4.element import Tag
 
-    from star_discovery.recovery.types import BSItem, HTMLParentNode
+    from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
+    from star_discovery.recovery.type_aliases import BSItem
 
 
 class HTMLTextNode(HTMLBaseNode):
@@ -26,7 +27,7 @@ class HTMLTextNode(HTMLBaseNode):
         count.add_text_node(item)
         return count
 
-    def __init__(self, parent: HTMLParentNode, elm: NavigableString, index: int):
+    def __init__(self, parent: HTMLElementBaseNode, elm: NavigableString, index: int):
         text_bytes = elm.output_ready().encode("utf8")
         self._value = sha256(text_bytes, usedforsecurity=False).hexdigest()
         self._elm = elm
@@ -36,7 +37,7 @@ class HTMLTextNode(HTMLBaseNode):
         return f"[text: '{self.text()}']"
 
     def add_to_html(self, item: Tag) -> bool:
-        if not self._is_recovered:
+        if not self.is_recovered():
             return False
         item.append(NavigableString(self._elm))
         return True

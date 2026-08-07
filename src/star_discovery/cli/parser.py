@@ -5,9 +5,8 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from pathlib import Path
 
 from star_discovery import __version__
-from star_discovery.cli.commands.common import CommonArgs
-import star_discovery.cli.commands.consume as consume_subcommand
-import star_discovery.cli.commands.query as query_subcommand
+import star_discovery.cli.commands.read as read_subcommand
+import star_discovery.cli.commands.info as info_subcommand
 
 STDOUT_PATH = Path("-")
 
@@ -24,8 +23,8 @@ def make_parser() -> ArgumentParser:
     )
     subparsers = parser.add_subparsers()
     subparsers.required = True
-    consume_subcommand.add_subcommand(subparsers)
-    query_subcommand.add_subcommand(subparsers)
+    read_subcommand.add_subcommand(subparsers)
+    info_subcommand.add_subcommand(subparsers)
     return parser
 
 
@@ -33,9 +32,8 @@ def run() -> int:
     parser = make_parser()
     parsed_args = parser.parse_args()
     subcommand_name = parsed_args.subcommand_name
-    validated_args: CommonArgs = parsed_args.validate_func(parsed_args)
-    validated_args.logger.info(
-        f"Running subcommand '{subcommand_name}' with args: {validated_args}"
-    )
+    validated_args = parsed_args.validate_func(parsed_args)
+    logger = validated_args.common.logger
+    logger.info(f"Running subcommand '{subcommand_name}:")
     parsed_args.run_func(validated_args)
     return 0

@@ -8,7 +8,6 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 
-from star_discovery.bs_helpers import html_desc
 from star_discovery.cli.commands.common import (
     CommonArgs,
     add_db_arg,
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
     from star_discovery.inputs.db import Database
 
 THRESHOLD_MINIMUM = 2
-SUBCOMMAND_NAME = "consume"
+SUBCOMMAND_NAME = "read"
 
 
 @dataclass
@@ -31,16 +30,10 @@ class InputFile:
 
 
 @dataclass
-class ConsumeArgs(CommonArgs):
+class ConsumeArgs:
+    common: CommonArgs
     inputs: list[InputFile]
     threshold: int
-
-    def __init__(
-        self, common_args: CommonArgs, inputs: list[InputFile], threshold: int
-    ):
-        super().__init__(common_args.db_path, common_args.database, common_args.logger)
-        self.inputs = inputs
-        self.threshold = threshold
 
 
 def add_subcommand(subparser: argparse._SubParsersAction[ArgumentParser]) -> None:
@@ -102,25 +95,27 @@ def validate_threshold_arg(threshold: int) -> int:
 
 def validate(args: Namespace) -> ConsumeArgs:
     threshold = validate_threshold_arg(int(args.threshold))
-
     common_args = common_validate(args, can_create_db=True, threshold=threshold)
-
     input_paths = args.input
     input_data = validate_input_arg(input_paths)
-
     return ConsumeArgs(common_args, input_data, threshold)
 
 
-def run(args: ConsumeArgs) -> None:
-    db = args.database
-    logger = args.logger
+def run(args: ConsumeArgs) -> int:
+    db = args.common.database
+    logger = args.common.logger
     logger.info(f"Starting with database: {db}.")
 
     for input_file in args.inputs:
         input_path = input_file.path.absolute()
         input_html = input_file.data
-        input_desc = html_desc(input_html, str(input_path))
-        db.add_document(input_html, input_desc)
+        db.add_document(input_html, input_path, logger)
 
-    logger.info(f"Completed with database: {db}.")
-    print(db.documents()[0].to_html().decode(True))
+    for index, doc in enumerate(db.documents()):
+        print(f"{index + 1}. {doc}")
+    print(f"Completed database: {db}.")
+
+    db_path = args.common.db_path
+    db_path.unlink()
+    db.save(db_path, logger)
+    return 0

@@ -7,16 +7,19 @@ from typing import TYPE_CHECKING
 from bs4.element import NavigableString, Tag
 
 from star_discovery.bs_helpers import tag_name, unexpected_elm_error
-from star_discovery.recovery.abc.html_base import HTMLBaseNode
-from star_discovery.recovery.attr_key_basic import AttrKeyBasicNode
-from star_discovery.recovery.attr_key_html_class import AttrKeyHTMLClassNode
-from star_discovery.recovery.html_text import HTMLTextNode
-from star_discovery.types import NodeCount
+from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
+from star_discovery.recovery.nodes.attr_key_basic import AttrKeyBasicNode
+from star_discovery.recovery.nodes.attr_key_html_class import AttrKeyHTMLClassNode
+from star_discovery.recovery.nodes.html_text import HTMLTextNode
+from star_discovery.summaries import NodeCount, RevealResult
 
 if TYPE_CHECKING:
-    from star_discovery.recovery.types import BSItem, HTMLParentNode, HTMLClasses
-    from star_discovery.recovery.html_element_root import HTMLElementRootNode
-    from star_discovery.types import RecoveredKeys, RevealResult
+    from star_discovery.recovery.type_aliases import (
+        BSItem,
+        HTMLClasses,
+        RecoveredKey,
+    )
+    from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
 
 
 HTML_CLASS_ATTR_NAME = "class"
@@ -60,7 +63,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
                 raise unexpected_elm_error(child)
         return count
 
-    def __init__(self, parent: HTMLParentNode | None, elm: Tag, index: int = 0):
+    def __init__(self, parent: HTMLElementBaseNode | None, elm: Tag, index: int = 0):
         # We should always have a parent recoverable node for an HTML element,
         # unless the node in the HTML document this recoverable node item
         # is tracking does not have a parent (i.e., it is the parent node).
@@ -75,9 +78,8 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return f"[elm: {self.tag()}]"
 
     def add_to_html(self, item: Tag) -> bool:
-        if not self._is_recovered:
+        if not self.is_recovered():
             return False
-
         tag = Tag(name=self._elm.name, namespace=self._elm.namespace)
         item.append(tag)
 
@@ -89,13 +91,12 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
 
         for child_node in self._child_nodes:
             child_node.add_to_html(tag)
-
         return True
 
     def tag(self) -> str:
         return f"<{tag_name(self._elm)}>"
 
-    def reveal(self, keys: RecoveredKeys) -> RevealResult:
+    def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
         success, result = self._reveal_self(keys)
         if not success:
             return result
@@ -142,7 +143,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return count
 
     def _reveal_attr_key_html_class_node(
-        self, keys: RecoveredKeys, html_classes: HTMLClasses
+        self, keys: frozenset[RecoveredKey], html_classes: HTMLClasses
     ) -> RevealResult:
         # We should never see more than one HTML class attribute
         # on a HTML element.
@@ -157,7 +158,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return child_reveal_result
 
     def _reveal_attr_key_basic_node(
-        self, keys: RecoveredKeys, attr_name: str, attr_value: str
+        self, keys: frozenset[RecoveredKey], attr_name: str, attr_value: str
     ) -> RevealResult:
         assert isinstance(attr_value, str)
 
@@ -169,7 +170,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return new_attr_node.reveal(keys)
 
     def _reveal_html_elm_body_node(
-        self, keys: RecoveredKeys, elm: Tag, index: int
+        self, keys: frozenset[RecoveredKey], elm: Tag, index: int
     ) -> RevealResult:
         html_instance_node = self.as_html_elm_node()
         assert html_instance_node
@@ -179,7 +180,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return child_html_elm.reveal(keys)
 
     def _reveal_html_text_node(
-        self, keys: RecoveredKeys, text: NavigableString, index: int
+        self, keys: frozenset[RecoveredKey], text: NavigableString, index: int
     ) -> RevealResult:
         html_instance_node = self.as_html_elm_node()
         assert html_instance_node
@@ -199,14 +200,8 @@ class HTMLElementBodyNode(HTMLElementBaseNode):
         super_count = super(HTMLElementBodyNode, cls).count_for_source_item(item)
         return count.combine(super_count)
 
-    def __init__(self, parent: HTMLParentNode, elm: Tag, index: int = 0):
+    def __init__(self, parent: HTMLElementBaseNode, elm: Tag, index: int = 0):
         super().__init__(parent, elm, index)
 
     def as_html_elm_body_node(self) -> HTMLElementBodyNode | None:
         return self
-
-    def count_for_recovered_doc(self) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc()):
-            return None
-        count.add_html_node(tag_name(self._elm))
-        return count

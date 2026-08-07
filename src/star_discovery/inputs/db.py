@@ -1,26 +1,34 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
 import pickle
-from typing import Any, ClassVar, TYPE_CHECKING
+from typing import ClassVar, TYPE_CHECKING
 
 from packaging.version import Version
 
 import star_discovery
 from star_discovery.inputs.document import Document
-from star_discovery.types import RevealResult
+from star_discovery.summaries import RevealResult
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from bs4 import BeautifulSoup
 
-    from star_discovery.recovery.abc.base import BaseNode
     from star_discovery.logging import Logger
-    from star_discovery.types import KeyMaterial, RecoveredKey
+    from star_discovery.recovery.type_aliases import KeyMaterial, RecoveredKey
+
+
+@dataclass
+class RecoveryState:
+    recovered: int
+    frontier: int
+    total: int
+    keys: int
 
 
 class Database:
     DEFAULT_FILENAME: ClassVar[str] = "star-discovery.db"
-
-    logger: Logger | None
 
     version: Version = Version(star_discovery.__version__)
     """The version of this library that a database instance was created
@@ -31,10 +39,10 @@ class Database:
     key (or in our simulated key, path to an element) for the key to
     be recovered."""
 
-    _documents: list[Document] = []
+    _documents: list[Document]
     """Simple list to keep track of all the documents in this collection."""
 
-    _key_sources: dict[KeyMaterial, set[Document]] = {}
+    _key_sources: dict[KeyMaterial, set[Document]]
     """Keep track of how many documents include a node with the the given
     node path. The size of this allows us to keep track of whether
     we've hit the given K threshold, and keeping the documents as a list
@@ -51,7 +59,7 @@ class Database:
      <span />
     </div>"""
 
-    _recovered_keys: set[RecoveredKey] = set()
+    _recovered_keys: set[RecoveredKey]
     """The keys that have have at least `threshold` documents contributing
     key material."""
 
@@ -61,9 +69,11 @@ class Database:
     and b. collect (i.e., collect all key material possible from frontier
     nodes, to see if we're able to recover any additional keys)."""
 
-    def __init__(self, threshold: int, logger: Logger | None = None):
+    def __init__(self, threshold: int):
         self.threshold = threshold
-        self.logger = logger
+        self._documents = []
+        self._key_sources = {}
+        self._recovered_keys = set()
 
     def __str__(self) -> str:
         return (
@@ -73,31 +83,20 @@ class Database:
             f"# recovered nodes: {self.total_recovered_nodes()})"
         )
 
-    def __getstate__(self) -> Any:
-        """Implement the pickle 'dunder' methods so make sure none of the logger
-        state or configuration is saved in the pickle'd data, since 1. we want
-        that configuration to change per invocation / re-hydration, and
-        2. saving the logger object could also persist streams to files on
-        disk (and other external state like that) which we don't want to
-        mix up."""
-        state = self.__dict__.copy()
-        del state["logger"]
-        return state
+    def save(self, path: Path, logger: Logger) -> None:
+        data = pickle.dumps(self)
+        path.write_bytes(data)
+        logger.info(f"Successfully wrote database to {path}")
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
-        self.__dict__.update(state)
-        self.logger = None
-
-    def reveal_round(self) -> RevealResult:
+    def reveal_round(self, logger: Logger) -> RevealResult:
         result = RevealResult()
         current_keys = frozenset(self._recovered_keys)
         for index, doc in enumerate(self._documents):
-            doc_result = doc.reveal(current_keys, self.logger)
-            if self.logger:
-                self.logger.debug(
-                    f"    Round {self._round} (Doc {index + 1} / {self.num_docs()}): "
-                    + str(doc_result),
-                )
+            doc_result = doc.reveal(current_keys, logger)
+            logger.debug(
+                f"    Round {self._round} (Doc {index + 1} / {self.num_docs()}): "
+                + str(doc_result),
+            )
             self._update_key_material(doc, doc_result)
             result.merge_in(doc_result)
         return result
@@ -105,51 +104,48 @@ class Database:
     def collect_round(self) -> int:
         return self._update_recovered_keys()
 
-    def add_document(self, bs_doc: BeautifulSoup, desc: str) -> None:
+    def recovery_state(self) -> RecoveryState:
+        return RecoveryState(
+            self.total_recovered_nodes(),
+            self.total_frontier_nodes(),
+            self.total_known_nodes(),
+            self.total_recovered_keys(),
+        )
+
+    def add_document(self, bs_doc: BeautifulSoup, path: Path, logger: Logger) -> None:
+        prev_state = self.recovery_state()
         prev_known_nodes = self.total_known_nodes()
 
-        new_doc = Document(bs_doc, desc)
-        if self.logger:
-            self.logger.info(f"Adding document to collection: {new_doc}")
+        new_doc = Document(bs_doc, path)
+        logger.debug(f"Adding document to collection: {new_doc}")
         self._documents.append(new_doc)
 
-        curr_known_nodes = self.total_known_nodes()
-        if self.logger:
-            self.logger.debug(f" - Previously knew of {prev_known_nodes} nodes")
-            self.logger.debug(f" - Now know of {curr_known_nodes} nodes")
+        curr_state = self.recovery_state()
+        logger.debug(f" - Previously knew of {prev_state.total} nodes")
+        logger.debug(f" - Now know of {curr_state.total} nodes")
 
         any_new_keys = False
-        any_new_nodes = prev_known_nodes < curr_known_nodes
-
+        any_new_nodes = prev_state.total < curr_state.total
         while any_new_keys or any_new_nodes:
-            prev_recovered_nodes = self.total_recovered_nodes()
-            prev_frontier_nodes = self.total_frontier_nodes()
-            prev_recovered_keys = self.total_recovered_keys()
+            prev_state = self.recovery_state()
 
             self._round += 1
-            if self.logger:
-                self.logger.debug(
-                    f"Start Round {self._round} w/ {len(self._recovered_keys)} keys"
-                    + "=====",
-                )
-            self.reveal_round()
+            logger.debug(
+                f"Round {self._round} start:{len(self._recovered_keys)} keys",
+            )
+
+            self.reveal_round(logger)
             self.collect_round()
+            curr_state = self.recovery_state()
 
-            curr_recovered_nodes = self.total_recovered_nodes()
-            curr_frontier_nodes = self.total_frontier_nodes()
-            curr_known_nodes = self.total_known_nodes()
-            curr_recovered_keys = self.total_recovered_keys()
-
-            any_new_keys = curr_recovered_keys > prev_recovered_keys
-            prev_total_nodes = prev_recovered_nodes + prev_frontier_nodes
-            any_new_nodes = curr_known_nodes > prev_total_nodes
-            if self.logger:
-                self.logger.debug(
-                    f"\tEnd Round {self._round}. (prev -> curr)\n"
-                    f"\t\tRecovered nodes:\t{prev_recovered_nodes} -> {curr_recovered_nodes}\n"
-                    f"\t\tFrontier nodes:\t{prev_frontier_nodes} -> {curr_frontier_nodes}\n"
-                    f"\t\tRecovered keys:\t{prev_recovered_keys} -> {curr_recovered_keys}\n"
-                )
+            any_new_keys = curr_state.keys > prev_state.keys
+            any_new_nodes = curr_state.total > prev_state.total
+            logger.debug(
+                f"Round {self._round} end: "
+                f"Recovered nodes: {prev_state.recovered} -> {curr_state.recovered}, "
+                f"Frontier nodes: {prev_state.frontier} -> {curr_state.frontier}, "
+                f"Recovered keys:{prev_state.keys} -> {curr_state.keys}"
+            )
 
     def documents(self) -> list[Document]:
         return self._documents
@@ -177,7 +173,7 @@ class Database:
         # the most concise to code. If we wanted to optimize the implementation
         # we could keep track of which key contributions are coming from
         # frontier nodes, and only check if those have passed the threshold.
-        seen_nodes: set[BaseNode] = result.recovered | result.frontier
+        seen_nodes = result.recovered | result.frontier
         for node in seen_nodes:
             key_material = node.path
             try:
