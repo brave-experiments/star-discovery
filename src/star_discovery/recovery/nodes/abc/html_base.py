@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import TYPE_CHECKING
+from typing import override, TYPE_CHECKING
 
 from star_discovery.recovery.nodes.abc.base import BaseNode
 
@@ -23,6 +23,7 @@ class HTMLBaseNode(BaseNode, ABC):
         self._index = index
         super().__init__(parent)
 
+    @override
     def _path_segment_value(self) -> str:
         if self._index:
             return f"{self._index}:{self._value}"

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import ClassVar, override, TYPE_CHECKING
 
 from star_discovery.bs_helpers import unrecovered_attr_name
 from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class AttrKeyBasicNode(AttrKeyBaseNode):
-    SEGMENT_PREFIX = "attr-name"
+    SEGMENT_PREFIX: ClassVar[str] = "attr-name"
 
     _attr_value: str
     """Note that this is not the value of this node (that is still the `value`
@@ -33,6 +33,7 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
     def __str__(self) -> str:
         return f"[attr: {self._value}=]"
 
+    @override
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         if self.is_frontier() and inc_hidden:
             attr_name = unrecovered_attr_name(self._value)
@@ -45,6 +46,7 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
             return True
         return False
 
+    @override
     def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
         success, result = self._reveal_self(keys)
         if not success:
@@ -55,9 +57,11 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
         result.merge_in(child_node_result)
         return result
 
+    @override
     def as_attr_key_basic_node(self) -> AttrKeyBasicNode | None:
         return self
 
+    @override
     def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
         if not (count := super().count_for_recovered_doc(logger)):
             return None

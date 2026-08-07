@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import ClassVar, override, TYPE_CHECKING
 
 from bs4.element import AttributeValueList
 
@@ -22,7 +22,7 @@ HTML_CLASS_ATTR_NAME = "class"
 
 
 class AttrKeyHTMLClassNode(AttrKeyBaseNode):
-    SEGMENT_PREFIX = "attr-class"
+    SEGMENT_PREFIX: ClassVar[str] = "attr-class"
 
     _html_classes: list[str]
     """Note that these HTML class names are not the value being protected
@@ -32,6 +32,7 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
 
     _html_class_nodes: list[AttrValueHTMLClassNode] | None
 
+    @override
     @classmethod
     def count_for_source_item(cls, item: BSItem) -> NodeCount:
         assert isinstance(item, str)
@@ -46,6 +47,7 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
     def __str__(self) -> str:
         return "[class=]"
 
+    @override
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         if self.is_frontier() and inc_hidden:
             attr_name = unrecovered_attr_name(HTML_CLASS_ATTR_NAME)
@@ -59,6 +61,7 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
             return True
         return False
 
+    @override
     def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
         success, result = self._reveal_self(keys)
         if not success:
@@ -71,9 +74,11 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
             result.merge_in(child_node.reveal(keys))
         return result
 
+    @override
     def as_attr_key_html_class_node(self) -> AttrKeyHTMLClassNode | None:
         return self
 
+    @override
     def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
         if not (count := super().count_for_recovered_doc(logger)):
             return None

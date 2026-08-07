@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
-from typing import TYPE_CHECKING
+from typing import ClassVar, override, TYPE_CHECKING
 
 from bs4.element import Comment, NavigableString
 
@@ -17,10 +17,11 @@ if TYPE_CHECKING:
 
 
 class HTMLTextNode(HTMLBaseNode):
-    SEGMENT_PREFIX = "text"
+    SEGMENT_PREFIX: ClassVar[str] = "text"
 
     _elm: NavigableString
 
+    @override
     @classmethod
     def count_for_source_item(cls, item: BSItem) -> NodeCount:
         assert isinstance(item, NavigableString)
@@ -43,13 +44,9 @@ class HTMLTextNode(HTMLBaseNode):
         super().__init__(parent, index)
 
     def __str__(self) -> str:
-        return f"[text: '{self.text()}']"
+        return f"[text: '{self.trim()}']"
 
-    def trim(self, max_length: int = 10) -> str:
-        if len(self._elm) <= max_length:
-            return self._elm
-        return f"{self._elm[:10]}…"
-
+    @override
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         if self.is_frontier() and inc_hidden:
             item.append(Comment(self._elm))
@@ -59,15 +56,11 @@ class HTMLTextNode(HTMLBaseNode):
             return True
         return False
 
-    def text(self, max_chars: int = 10) -> str:
-        text = self._elm.output_ready()
-        if len(text) <= max_chars:
-            return text
-        return text[0:max_chars] + "…"
-
+    @override
     def as_html_text_node(self) -> HTMLTextNode | None:
         return self
 
+    @override
     def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
         if not (count := super().count_for_recovered_doc(logger)):
             return None
@@ -75,3 +68,8 @@ class HTMLTextNode(HTMLBaseNode):
             logger.debug(f"adding text to NodeCount: {self.trim()}")
         count.add_text_node(self._elm)
         return count
+
+    def trim(self, max_length: int = 10) -> str:
+        if len(self._elm) <= max_length:
+            return self._elm
+        return f"{self._elm[:10]}…"

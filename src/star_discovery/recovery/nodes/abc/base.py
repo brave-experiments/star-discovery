@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
     from star_discovery.recovery.nodes.html_text import HTMLTextNode
     from star_discovery.recovery.type_aliases import (
+        BSItem,
         ChildHavingNode,
         KeyMaterial,
         RecoveredKey,
@@ -42,6 +43,10 @@ class BaseNode(ABC):
     _is_recovered: bool = False
     _parent: ChildHavingNode | None
     _value: str
+
+    @classmethod
+    def count_for_source_item(cls, item: BSItem) -> NodeCount:
+        raise NotImplementedError()
 
     def __init__(self, parent: ChildHavingNode | None):
         self._is_recovered = False

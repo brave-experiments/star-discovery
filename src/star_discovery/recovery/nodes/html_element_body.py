@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-
-from typing import TYPE_CHECKING
+from typing import ClassVar, override, TYPE_CHECKING
 
 from bs4.element import Comment, NavigableString, Tag
 
@@ -27,7 +26,7 @@ HTML_CLASS_ATTR_NAME = "class"
 
 
 class HTMLElementBaseNode(HTMLBaseNode, ABC):
-    SEGMENT_PREFIX = "html"
+    SEGMENT_PREFIX: ClassVar[str] = "html"
 
     _elm: Tag
     _child_nodes: list[HTMLElementBodyNode | HTMLTextNode]
@@ -38,6 +37,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
     """The index of the this HTML element, amongst its peer elements,
     within the parent element."""
 
+    @override
     @classmethod
     def count_for_source_item(cls, item: BSItem) -> NodeCount:
         assert isinstance(item, Tag)
@@ -79,6 +79,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
     def __str__(self) -> str:
         return f"[elm: {self.tag()}]"
 
+    @override
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         if self.is_frontier() and inc_hidden:
             child_html = self._elm.prettify()
@@ -102,9 +103,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
 
         return False
 
-    def tag(self) -> str:
-        return f"<{tag_name(self._elm)}>"
-
+    @override
     def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
         success, result = self._reveal_self(keys)
         if not success:
@@ -141,6 +140,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
                 raise unexpected_elm_error(child)
         return result
 
+    @override
     def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
         if not (count := super().count_for_recovered_doc(logger)):
             return None
@@ -157,6 +157,9 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
             if class_count := self._html_class_attr.count_for_recovered_doc(logger):
                 count = count.combine(class_count)
         return count
+
+    def tag(self) -> str:
+        return f"<{tag_name(self._elm)}>"
 
     def _reveal_attr_key_html_class_node(
         self, keys: frozenset[RecoveredKey], html_classes: HTMLClasses
@@ -219,5 +222,6 @@ class HTMLElementBodyNode(HTMLElementBaseNode):
     def __init__(self, parent: HTMLElementBaseNode, elm: Tag, index: int = 0):
         super().__init__(parent, elm, index)
 
+    @override
     def as_html_elm_body_node(self) -> HTMLElementBodyNode | None:
         return self

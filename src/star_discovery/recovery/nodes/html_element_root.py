@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import override, TYPE_CHECKING
 
 from bs4.element import Tag
 
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 class HTMLElementRootNode(HTMLElementBaseNode):
 
+    @override
     @classmethod
     def count_for_source_item(cls, item: BSItem) -> NodeCount:
         assert isinstance(item, Tag)
@@ -28,6 +29,7 @@ class HTMLElementRootNode(HTMLElementBaseNode):
     def __init__(self, elm: Tag):
         super().__init__(None, elm, 0)
 
+    @override
     def as_html_elm_root_node(self) -> HTMLElementRootNode | None:
         return self
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast, TYPE_CHECKING
+from typing import cast, ClassVar, override, TYPE_CHECKING
 
 from bs4.element import AttributeValueList
 
@@ -19,7 +19,7 @@ HTML_CLASS_ATTR_NAME = "class"
 
 
 class AttrValueHTMLClassNode(BaseNode):
-    SEGMENT_PREFIX = "html-class"
+    SEGMENT_PREFIX: ClassVar[str] = "html-class"
 
     def __init__(self, parent: AttrKeyHTMLClassNode, html_class: str):
         self._value = html_class
@@ -28,6 +28,7 @@ class AttrValueHTMLClassNode(BaseNode):
     def __str__(self) -> str:
         return f"[class: {self._value}]"
 
+    @override
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         if self.is_frontier() and inc_hidden:
             class_name = unrecovered_attr_value(self._value)
@@ -38,9 +39,11 @@ class AttrValueHTMLClassNode(BaseNode):
         cast(AttributeValueList, item[HTML_CLASS_ATTR_NAME]).append(class_name)
         return True
 
+    @override
     def as_attr_value_html_class_node(self) -> AttrValueHTMLClassNode | None:
         return self
 
+    @override
     def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
         if not (count := super().count_for_recovered_doc(logger)):
             return None

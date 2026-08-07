@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import ClassVar, override, TYPE_CHECKING
 
 from star_discovery.bs_helpers import unrecovered_attr_value
 from star_discovery.recovery.nodes.abc.base import BaseNode
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class AttrValueBasicNode(BaseNode):
-    SEGMENT_PREFIX = "attr-value"
+    SEGMENT_PREFIX: ClassVar[str] = "attr-value"
 
     _attr_name: str
 
@@ -26,6 +26,7 @@ class AttrValueBasicNode(BaseNode):
     def __str__(self) -> str:
         return f"[attr: ={self._value}]"
 
+    @override
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         if self.is_frontier() and inc_hidden:
             attr_value = unrecovered_attr_value(self._value)
@@ -37,9 +38,11 @@ class AttrValueBasicNode(BaseNode):
             return True
         return False
 
+    @override
     def as_attr_value_basic_node(self) -> AttrValueBasicNode | None:
         return self
 
+    @override
     def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
         if not (count := super().count_for_recovered_doc(logger)):
             return None
