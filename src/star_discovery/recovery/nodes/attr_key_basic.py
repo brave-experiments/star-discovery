@@ -9,6 +9,7 @@ from star_discovery.recovery.nodes.attr_value_basic import AttrValueBasicNode
 if TYPE_CHECKING:
     from bs4.element import Tag
 
+    from star_discovery.logging import Logger
     from star_discovery.recovery.type_aliases import RecoveredKey
     from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
     from star_discovery.summaries import RevealResult, NodeCount
@@ -57,14 +58,13 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
     def as_attr_key_basic_node(self) -> AttrKeyBasicNode | None:
         return self
 
-    def count_for_recovered_doc(self) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc()):
+    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
+        if not (count := super().count_for_recovered_doc(logger)):
             return None
-
+        if logger:
+            logger.debug(f"adding attr to NodeCount: {self._value}")
         count.add_attr_name(self._value)
-        if not self._attr_value_node:
-            return count
-
-        if value_count := self._attr_value_node.count_for_recovered_doc():
-            count.combine(value_count)
+        if self._attr_value_node:
+            if value_count := self._attr_value_node.count_for_recovered_doc(logger):
+                count = count.combine(value_count)
         return count

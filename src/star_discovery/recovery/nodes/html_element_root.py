@@ -11,6 +11,7 @@ from star_discovery.summaries import NodeCount
 if TYPE_CHECKING:
     from bs4 import BeautifulSoup
 
+    from star_discovery.logging import Logger
     from star_discovery.recovery.type_aliases import BSItem
 
 
@@ -30,10 +31,9 @@ class HTMLElementRootNode(HTMLElementBaseNode):
     def as_html_elm_root_node(self) -> HTMLElementRootNode | None:
         return self
 
-    def recovered_count(self) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc()):
+    def recovered_count(self, logger: Logger | None) -> NodeCount | None:
+        if not (count := super().count_for_recovered_doc(logger)):
             return None
-        count.add_html_node(tag_name(self._elm))
         return count
 
     def source_count(self) -> NodeCount:

@@ -133,13 +133,15 @@ def summary_as_json(summary: RecoverySummary) -> JsonData:
 
 def run_json_format(args: InfoArgs, indexes: list[int]) -> int:
     db = args.common.database
+    logger = args.common.logger
     documents = db.documents()
     data_output: JsonData = {"database": str(db), "documents": []}
 
     for an_index in indexes:
         doc = documents[an_index - 1]
-        doc_summary = {"document": str(doc), "data": summary_as_json(doc.summary())}
-        data_output["documents"].append(doc_summary)
+        summary = doc.summary(logger)
+        summary_data = {"document": str(doc), "data": summary_as_json(summary)}
+        data_output["documents"].append(summary_data)
 
     print(json.dumps(data_output))
     return 0
@@ -147,6 +149,7 @@ def run_json_format(args: InfoArgs, indexes: list[int]) -> int:
 
 def run_table_format(args: InfoArgs, indexes: list[int]) -> int:
     db = args.common.database
+    logger = args.common.logger
     documents = db.documents()
 
     print(str(db))
@@ -155,9 +158,10 @@ def run_table_format(args: InfoArgs, indexes: list[int]) -> int:
 
     for an_index in indexes:
         doc = documents[an_index - 1]
+        summary = doc.summary(logger)
         print(str(doc))
         print("---")
-        print(summary_as_table(doc.summary()))
+        print(summary_as_table(summary))
         print("")
 
     return 0

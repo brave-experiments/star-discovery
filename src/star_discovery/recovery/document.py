@@ -74,8 +74,12 @@ class Document:
     def num_known_nodes(self) -> int:
         return self.num_frontier_nodes() + self.num_recovered_nodes()
 
-    def recovered_count(self) -> NodeCount:
-        return self._root_node.recovered_count() or NodeCount()
+    def recovered_count(self, logger: Logger | None = None) -> NodeCount:
+        if not (count := self._root_node.recovered_count(logger)):
+            if logger:
+                logger.debug("document contains no recovered nodes for NodeCount")
+            return NodeCount()
+        return count
 
     def source_count(self) -> NodeCount:
         return self._root_node.source_count()

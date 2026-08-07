@@ -57,8 +57,8 @@ class Document:
             f"({self.pct_recovered()}%)"
         )
 
-    def summary(self) -> RecoverySummary:
-        return RecoverySummary(self.recovered_count(), self.source_count())
+    def summary(self, logger: Logger | None = None) -> RecoverySummary:
+        return RecoverySummary(self.recovered_count(logger), self.source_count())
 
     def reveal(self, keys: frozenset[RecoveredKey], logger: Logger) -> RevealResult:
         return self._recovery_doc.reveal(keys, logger)
@@ -75,8 +75,8 @@ class Document:
     def num_known_nodes(self) -> int:
         return self._recovery_doc.num_known_nodes()
 
-    def recovered_count(self) -> NodeCount:
-        return self._recovery_doc.recovered_count()
+    def recovered_count(self, logger: Logger | None = None) -> NodeCount:
+        return self._recovery_doc.recovered_count(logger)
 
     def source_count(self) -> NodeCount:
         return self._recovery_doc.source_count()

@@ -11,6 +11,7 @@ from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
 if TYPE_CHECKING:
     from bs4.element import Tag
 
+    from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
     from star_discovery.recovery.type_aliases import BSItem
 
@@ -35,13 +36,19 @@ class HTMLTextNode(HTMLBaseNode):
         return None
 
     def __init__(self, parent: HTMLElementBaseNode, elm: NavigableString, index: int):
-        text_bytes = elm.output_ready().encode("utf8")
+        trimmed_text = elm.output_ready().strip()
+        text_bytes = trimmed_text.encode("utf8")
         self._value = sha256(text_bytes, usedforsecurity=False).hexdigest()
-        self._elm = elm
+        self._elm = NavigableString(trimmed_text)
         super().__init__(parent, index)
 
     def __str__(self) -> str:
         return f"[text: '{self.text()}']"
+
+    def trim(self, max_length: int = 10) -> str:
+        if len(self._elm) <= max_length:
+            return self._elm
+        return f"{self._elm[:10]}…"
 
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         if self.is_frontier() and inc_hidden:
@@ -61,8 +68,10 @@ class HTMLTextNode(HTMLBaseNode):
     def as_html_text_node(self) -> HTMLTextNode | None:
         return self
 
-    def count_for_recovered_doc(self) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc()):
+    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
+        if not (count := super().count_for_recovered_doc(logger)):
             return None
+        if logger:
+            logger.debug(f"adding text to NodeCount: {self.trim()}")
         count.add_text_node(self._elm)
         return count

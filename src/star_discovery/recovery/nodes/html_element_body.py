@@ -14,6 +14,7 @@ from star_discovery.recovery.nodes.html_text import HTMLTextNode
 from star_discovery.summaries import NodeCount, RevealResult
 
 if TYPE_CHECKING:
+    from star_discovery.logging import Logger
     from star_discovery.recovery.type_aliases import (
         BSItem,
         HTMLClasses,
@@ -140,17 +141,20 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
                 raise unexpected_elm_error(child)
         return result
 
-    def count_for_recovered_doc(self) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc()):
+    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
+        if not (count := super().count_for_recovered_doc(logger)):
             return None
+        if logger:
+            logger.debug(f"adding html node to NodeCount: {tag_name(self._elm)}")
+        count.add_html_node(tag_name(self._elm))
         for child in self._child_nodes:
-            if child_count := child.count_for_recovered_doc():
+            if child_count := child.count_for_recovered_doc(logger):
                 count = count.combine(child_count)
         for basic_attr in self._basic_attrs.values():
-            if attr_count := basic_attr.count_for_recovered_doc():
+            if attr_count := basic_attr.count_for_recovered_doc(logger):
                 count = count.combine(attr_count)
         if self._html_class_attr:
-            if class_count := self._html_class_attr.count_for_recovered_doc():
+            if class_count := self._html_class_attr.count_for_recovered_doc(logger):
                 count = count.combine(class_count)
         return count
 

@@ -12,6 +12,7 @@ from star_discovery.summaries import NodeCount
 if TYPE_CHECKING:
     from bs4.element import Tag
 
+    from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
     from star_discovery.recovery.type_aliases import BSItem, RecoveredKey
     from star_discovery.summaries import RevealResult
@@ -73,15 +74,15 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
     def as_attr_key_html_class_node(self) -> AttrKeyHTMLClassNode | None:
         return self
 
-    def count_for_recovered_doc(self) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc()):
+    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
+        if not (count := super().count_for_recovered_doc(logger)):
             return None
-
-        count.add_attr_value(HTML_CLASS_ATTR_NAME)
+        if logger:
+            logger.debug(f"adding attr to NodeCount: {HTML_CLASS_ATTR_NAME}")
+        count.add_attr_name(HTML_CLASS_ATTR_NAME)
         if not self._html_class_nodes:
             return count
-
         for html_class_node in self._html_class_nodes:
-            if html_class_count := html_class_node.count_for_recovered_doc():
-                count.combine(html_class_count)
+            if html_class_count := html_class_node.count_for_recovered_doc(logger):
+                count = count.combine(html_class_count)
         return count

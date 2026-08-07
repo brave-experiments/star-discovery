@@ -10,6 +10,7 @@ from star_discovery.recovery.nodes.abc.base import BaseNode
 if TYPE_CHECKING:
     from bs4.element import Tag
 
+    from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.attr_key_html_class import AttrKeyHTMLClassNode
     from star_discovery.summaries import NodeCount
 
@@ -40,8 +41,10 @@ class AttrValueHTMLClassNode(BaseNode):
     def as_attr_value_html_class_node(self) -> AttrValueHTMLClassNode | None:
         return self
 
-    def count_for_recovered_doc(self) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc()):
+    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
+        if not (count := super().count_for_recovered_doc(logger)):
             return None
-        count.add_attr_value(self._value)
+        if logger:
+            logger.debug(f"adding html class to NodeCount: {self._value}")
+        count.add_html_class(self._value)
         return count

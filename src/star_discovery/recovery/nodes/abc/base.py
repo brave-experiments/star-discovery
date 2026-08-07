@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
     from bs4.element import Tag
 
+    from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.attr_key_basic import AttrKeyBasicNode
     from star_discovery.recovery.nodes.attr_key_html_class import AttrKeyHTMLClassNode
     from star_discovery.recovery.nodes.attr_value_basic import AttrValueBasicNode
@@ -97,7 +98,8 @@ class BaseNode(ABC):
     def as_attr_value_html_class_node(self) -> AttrValueHTMLClassNode | None:
         return None
 
-    def count_for_recovered_doc(self) -> NodeCount | None:
+    # pylint: disable-next=unused-argument
+    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
         if not self._is_recovered:
             return None
         return NodeCount()
@@ -106,7 +108,7 @@ class BaseNode(ABC):
         return self._value
 
     def _path_segment(self) -> str:
-        return self.__class__.SEGMENT_PREFIX + "," + self._path_segment_value()
+        return f"({self.__class__.SEGMENT_PREFIX})-{self._path_segment_value()}"
 
     def _reveal_self(self, keys: frozenset[RecoveredKey]) -> RevealResultSelf:
         assert not self._is_recovered
