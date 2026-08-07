@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from star_discovery.logging import Logger
 
 STDOUT_PATH = Path("-")
+type DocIndexes = list[int]
 
 
 @dataclass
@@ -38,40 +39,61 @@ class CommonArgs:
         return f"database path: {self.db_path}, logging level: {self.logger.level()}"
 
 
-def add_db_arg(sub_parser: ArgumentParser) -> ArgumentParser:
-    sub_parser.add_argument(
+def add_indexes_arg(parser: ArgumentParser) -> None:
+    parser.add_argument(
+        "index",
+        default=[],
+        help="the index(es) of the document(s) to display detailed information "
+        "about, with 1 being the first document in the set. If omitted, then "
+        "prints a short list of what documents are included in database.",
+        nargs="*",
+        type=int,
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="if provided, has the same effect as including the indexes "
+        "for every document in the database.",
+    )
+
+
+def validate_indexes_arg(args: Namespace, db: Database) -> DocIndexes | None:
+    all_flag = args.all
+    assert isinstance(all_flag, bool)
+
+    indexes = args.index
+    num_docs = len(db.documents())
+    if all_flag:
+        if len(indexes) != 0:
+            raise ValueError(
+                "Invalid [index]. Cannot provide index value(s) "
+                "alongside the --all flag."
+            )
+        return list(range(1, num_docs + 1))
+
+    for an_index in indexes:
+        if an_index < 1:
+            msg = f"Invalid [index]. Indexes must be >= 0 (received {an_index})."
+            raise ValueError(msg)
+        if an_index > num_docs:
+            raise ValueError(
+                f"Invalid [index]. Received {an_index} but there are only "
+                f"{num_docs} documents in the database.",
+            )
+
+    return indexes if len(indexes) > 0 else None
+
+
+def add_db_arg(parser: ArgumentParser) -> None:
+    parser.add_argument(
         "database_path",
-        help="Either the path to an existing star-discovery database, or the "
-        "path to create a new database.",
+        help="the path to an existing star-discovery database or the "
+        "path to create a new database at",
         type=Path,
     )
-    return sub_parser
 
 
-def add_logging_args(sub_parser: ArgumentParser) -> ArgumentParser:
-    sub_parser.add_argument(
-        "--log-path",
-        default=STDOUT_PATH,
-        help="Path to write logging information to. Defaults to '-', "
-        "or that logs will be written stdout.",
-        type=Path,
-    )
-    sub_parser.add_argument(
-        "-l",
-        "--log-level",
-        choices=LEVELS,
-        default=DEFAULT_LEVEL,
-        help="Specify how how much information to log, with 'debug' being "
-        "the most information logged, and 'quiet' being the least (i.e., "
-        "no information logged). Note that errors are always logged, "
-        "irrespective of this value.",
-    )
-    return sub_parser
-
-
-def validate_or_create_db_path_arg(
-    db_path: Path, threshold: int
-) -> tuple[Path, Database]:
+def validate_or_create_db_path_arg(args: Namespace) -> tuple[Path, Database]:
     """Determine what the path for the database should be, given the --database
     argument.
 
@@ -87,6 +109,8 @@ def validate_or_create_db_path_arg(
     3. If no file and no directory exists at the given path, see if we can
        create a star-discovery database at the path. If so, use that
        database. If not, throw an exception."""
+    db_path = args.database_path
+    threshold = args.threshold
 
     # Check for case 1 above
     if db_path.is_file():
@@ -105,11 +129,12 @@ def validate_or_create_db_path_arg(
     return db_path, create_db(db_path, threshold)
 
 
-def validate_existing_db_path_arg(db_path: Path) -> tuple[Path, Database]:
+def validate_existing_db_path_arg(args: Namespace) -> tuple[Path, Database]:
     """If the given --database argument points to a file, then try
     loading the database file from that path. If it points to a directory,
     try loading a database a file in that directory with the default
     database name. Otherwise, its an invalid argument, so we throw."""
+    db_path = args.database_path
     if db_path.is_file():
         return db_path, load_db(db_path)
 
@@ -146,22 +171,46 @@ def validate_db_instance(db: Database, threshold: int | None = None) -> None:
         )
 
 
-def validate_logging_arg(level: str) -> Logger:
-    return config_logger(level)
+def add_logging_args(parser: ArgumentParser) -> None:
+    parser.add_argument(
+        "--log-path",
+        default=STDOUT_PATH,
+        help="Path to write logging information to. Defaults to '-', "
+        "or that logs will be written stdout.",
+        type=Path,
+    )
+    parser.add_argument(
+        "-l",
+        "--log-level",
+        choices=LEVELS,
+        default=DEFAULT_LEVEL,
+        help="Specify how how much information to log, with 'debug' being "
+        "the most information logged, and 'quiet' being the least (i.e., "
+        "no information logged). Note that errors are always logged, "
+        "irrespective of this value.",
+    )
 
 
-def validate(
+def validate_logging_arg(args: Namespace) -> Logger:
+    log_level = args.log_level
+    return config_logger(log_level)
+
+
+def add_common_args(parser: ArgumentParser) -> None:
+    """Add the database and logging arguments that every command requires."""
+    add_db_arg(parser)
+    add_logging_args(parser)
+
+
+def validate_common_args(
     args: Namespace, can_create_db: bool = True, threshold: int | None = None
 ) -> CommonArgs:
-    db_path_arg = args.database_path
     if can_create_db:
-        assert threshold
-        db_path, db_instance = validate_or_create_db_path_arg(db_path_arg, threshold)
+        db_path, db_instance = validate_or_create_db_path_arg(args)
     else:
-        db_path, db_instance = validate_existing_db_path_arg(db_path_arg)
+        db_path, db_instance = validate_existing_db_path_arg(args)
 
     validate_db_instance(db_instance, threshold)
 
-    log_level = args.log_level
-    logger = validate_logging_arg(log_level)
+    logger = validate_logging_arg(args)
     return CommonArgs(db_path, db_instance, logger)

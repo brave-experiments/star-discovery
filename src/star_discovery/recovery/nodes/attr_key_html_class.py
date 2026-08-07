@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from bs4.element import AttributeValueList
 
+from star_discovery.bs_helpers import unrecovered_attr_name
 from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
 from star_discovery.recovery.nodes.attr_value_html_class import AttrValueHTMLClassNode
 from star_discovery.summaries import NodeCount
@@ -44,14 +45,18 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
     def __str__(self) -> str:
         return "[class=]"
 
-    def add_to_html(self, item: Tag) -> bool:
-        if not self._is_recovered:
-            return False
-        item["class"] = AttributeValueList()
-        if self._html_class_nodes:
-            for html_class_node in self._html_class_nodes:
-                html_class_node.add_to_html(item)
-        return True
+    def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
+        if self.is_frontier() and inc_hidden:
+            attr_name = unrecovered_attr_name(HTML_CLASS_ATTR_NAME)
+            item[attr_name] = AttributeValueList(self._html_classes)
+            return True
+        if self._is_recovered:
+            item["class"] = AttributeValueList()
+            if self._html_class_nodes:
+                for html_class_node in self._html_class_nodes:
+                    html_class_node.add_to_html(item, inc_hidden)
+            return True
+        return False
 
     def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
         success, result = self._reveal_self(keys)

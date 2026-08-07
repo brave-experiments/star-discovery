@@ -4,7 +4,7 @@ from abc import ABC
 
 from typing import TYPE_CHECKING
 
-from bs4.element import NavigableString, Tag
+from bs4.element import Comment, NavigableString, Tag
 
 from star_discovery.bs_helpers import tag_name, unexpected_elm_error
 from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
@@ -57,8 +57,9 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
                 child_count = HTMLElementBodyNode.count_for_source_item(child)
                 count = count.combine(child_count)
             elif isinstance(child, NavigableString):
-                child_count = HTMLTextNode.count_for_source_item(child)
-                count = count.combine(child_count)
+                if trim_text := HTMLTextNode.is_relevant_text(child):
+                    child_count = HTMLTextNode.count_for_source_item(trim_text)
+                    count = count.combine(child_count)
             else:
                 raise unexpected_elm_error(child)
         return count
@@ -77,21 +78,28 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
     def __str__(self) -> str:
         return f"[elm: {self.tag()}]"
 
-    def add_to_html(self, item: Tag) -> bool:
-        if not self.is_recovered():
-            return False
-        tag = Tag(name=self._elm.name, namespace=self._elm.namespace)
-        item.append(tag)
+    def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
+        if self.is_frontier() and inc_hidden:
+            child_html = self._elm.prettify()
+            comment = Comment(child_html)
+            item.append(comment)
+            return True
 
-        for child_attr_node in self._basic_attrs.values():
-            child_attr_node.add_to_html(tag)
+        if self.is_recovered():
+            tag = Tag(name=self._elm.name, namespace=self._elm.namespace)
+            item.append(tag)
 
-        if self._html_class_attr:
-            self._html_class_attr.add_to_html(tag)
+            for child_attr_node in self._basic_attrs.values():
+                child_attr_node.add_to_html(tag, inc_hidden)
 
-        for child_node in self._child_nodes:
-            child_node.add_to_html(tag)
-        return True
+            if self._html_class_attr:
+                self._html_class_attr.add_to_html(tag, inc_hidden)
+
+            for child_node in self._child_nodes:
+                child_node.add_to_html(tag, inc_hidden)
+            return True
+
+        return False
 
     def tag(self) -> str:
         return f"<{tag_name(self._elm)}>"
@@ -115,17 +123,21 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
             child_result = self._reveal_attr_key_basic_node(keys, attr_name, attr_value)
             result.merge_in(child_result)
 
-        elm_index = -1
-        for an_elm in self._elm.children:
-            elm_index += 1
-            if isinstance(an_elm, Tag):
-                child_result = self._reveal_html_elm_body_node(keys, an_elm, elm_index)
+        index = -1
+        for child in self._elm.children:
+            if isinstance(child, Tag):
+                index += 1
+                child_result = self._reveal_html_elm_body_node(keys, child, index)
                 result.merge_in(child_result)
-            elif isinstance(an_elm, NavigableString):
-                child_result = self._reveal_html_text_node(keys, an_elm, elm_index)
-                result.merge_in(child_result)
+            elif isinstance(child, NavigableString):
+                if trimmed_text := HTMLTextNode.is_relevant_text(child):
+                    index += 1
+                    child_result = self._reveal_html_text_node(
+                        keys, trimmed_text, index
+                    )
+                    result.merge_in(child_result)
             else:
-                raise unexpected_elm_error(an_elm)
+                raise unexpected_elm_error(child)
         return result
 
     def count_for_recovered_doc(self) -> NodeCount | None:

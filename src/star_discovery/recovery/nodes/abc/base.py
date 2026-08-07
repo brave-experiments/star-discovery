@@ -60,7 +60,7 @@ class BaseNode(ABC):
     def is_recovered(self) -> bool:
         return self._is_recovered
 
-    def add_to_html(self, item: Tag) -> bool:
+    def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         raise NotImplementedError()
 
     def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:

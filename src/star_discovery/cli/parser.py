@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from star_discovery import __version__
-import star_discovery.cli.commands.read as read_subcommand
+import star_discovery.cli.commands.html as html_subcommand
 import star_discovery.cli.commands.info as info_subcommand
+import star_discovery.cli.commands.read as read_subcommand
 
 STDOUT_PATH = Path("-")
 
@@ -23,8 +26,9 @@ def make_parser() -> ArgumentParser:
     )
     subparsers = parser.add_subparsers()
     subparsers.required = True
-    read_subcommand.add_subcommand(subparsers)
+    html_subcommand.add_subcommand(subparsers)
     info_subcommand.add_subcommand(subparsers)
+    read_subcommand.add_subcommand(subparsers)
     return parser
 
 
@@ -34,6 +38,6 @@ def run() -> int:
     subcommand_name = parsed_args.subcommand_name
     validated_args = parsed_args.validate_func(parsed_args)
     logger = validated_args.common.logger
-    logger.info(f"Running subcommand '{subcommand_name}:")
-    parsed_args.run_func(validated_args)
-    return 0
+    subcommand_func: Callable[[Any], int] = parsed_args.run_func
+    assert callable(subcommand_func)
+    return subcommand_func(validated_args)

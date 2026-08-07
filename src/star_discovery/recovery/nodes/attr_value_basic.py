@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from star_discovery.bs_helpers import unrecovered_attr_value
 from star_discovery.recovery.nodes.abc.base import BaseNode
 
 if TYPE_CHECKING:
@@ -24,11 +25,16 @@ class AttrValueBasicNode(BaseNode):
     def __str__(self) -> str:
         return f"[attr: ={self._value}]"
 
-    def add_to_html(self, item: Tag) -> bool:
-        if not self._is_recovered:
-            return False
-        item[self._attr_name] = self._value
-        return True
+    def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
+        if self.is_frontier() and inc_hidden:
+            attr_value = unrecovered_attr_value(self._value)
+            item[self._attr_name] = attr_value
+            return True
+        if self._is_recovered:
+            attr_value = self._value
+            item[self._attr_name] = attr_value
+            return True
+        return False
 
     def as_attr_value_basic_node(self) -> AttrValueBasicNode | None:
         return self

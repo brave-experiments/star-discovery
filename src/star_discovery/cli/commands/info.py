@@ -9,10 +9,11 @@ from typing import Any, Literal, Final, TYPE_CHECKING
 from tabulate import tabulate
 
 from star_discovery.cli.commands.common import (
+    add_common_args,
+    add_indexes_arg,
     CommonArgs,
-    add_db_arg,
-    add_logging_args,
-    validate as common_validate,
+    validate_common_args,
+    validate_indexes_arg,
 )
 
 if TYPE_CHECKING:
@@ -36,7 +37,7 @@ class InfoArgs:
 def add_subcommand(subparser: argparse._SubParsersAction[ArgumentParser]) -> None:
     parser = subparser.add_parser(
         SUBCOMMAND_NAME,
-        help="Query information about documents from a star-discovery database.",
+        help="query information about documents from a star-discovery database.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.set_defaults(
@@ -44,67 +45,23 @@ def add_subcommand(subparser: argparse._SubParsersAction[ArgumentParser]) -> Non
         subcommand_name=SUBCOMMAND_NAME,
         validate_func=validate,
     )
-    add_db_arg(parser)
-    parser.add_argument(
-        "index",
-        default=[],
-        help="The index(es) of the document(s) to display detailed information "
-        "about, with 1 being the first document in the set. If omitted, then "
-        "prints a short list of what documents are included in database.",
-        nargs="*",
-        type=int,
-    )
-    parser.add_argument(
-        "--all",
-        action="store_true",
-        help="If provided, has the same effect as including the indexes for "
-        "every document in the database.",
-    )
+    add_common_args(parser)
+    add_indexes_arg(parser)
     parser.add_argument(
         "--format",
         "-f",
         choices=[FORMAT_JSON, FORMAT_MARKDOWN],
         default=FORMAT_MARKDOWN,
-        help="The format to use when printing information about selected tables.",
+        help="the format to use when printing information about selected tables.",
     )
-    add_logging_args(parser)
-
-
-def validate_index_arg(index_arg: list[int], all_flag: bool, db: Database) -> list[int]:
-    num_docs = len(db.documents())
-
-    if all_flag:
-        if len(index_arg) != 0:
-            raise ValueError(
-                "Invalid [index]. Cannot provide index value(s) "
-                "alongside the --all flag."
-            )
-        return list(range(1, num_docs + 1))
-
-    for an_index in index_arg:
-        if an_index < 1:
-            msg = f"Invalid [index]. Indexes must be >= 0 (received {an_index})."
-            raise ValueError(msg)
-        if an_index > num_docs:
-            raise ValueError(
-                f"Invalid [index]. Received {an_index} but there are only "
-                f"{num_docs} documents in the database.",
-            )
-
-    return index_arg
 
 
 def validate(args: Namespace) -> InfoArgs:
-    common_args = common_validate(args, can_create_db=False)
+    common_args = validate_common_args(args, can_create_db=False)
+    db = common_args.database
 
-    all_arg = args.all
-    index_arg = args.index
-    validated_indexes = validate_index_arg(index_arg, all_arg, common_args.database)
-
+    indexes = validate_indexes_arg(args, db)
     format_arg = args.format
-
-    indexes = None if len(validated_indexes) == 0 else validated_indexes
-
     return InfoArgs(common_args, indexes, format_arg)
 
 
@@ -215,6 +172,7 @@ def run(args: InfoArgs) -> int:
         if len(documents) == 0:
             logger.error("No documents in database.")
             return 1
+        print(str(db))
         for index, doc in enumerate(documents):
             print(f"{index + 1}. {doc}")
         return 0

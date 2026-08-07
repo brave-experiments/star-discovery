@@ -4,6 +4,7 @@ from typing import cast, TYPE_CHECKING
 
 from bs4.element import AttributeValueList
 
+from star_discovery.bs_helpers import unrecovered_attr_value
 from star_discovery.recovery.nodes.abc.base import BaseNode
 
 if TYPE_CHECKING:
@@ -26,10 +27,14 @@ class AttrValueHTMLClassNode(BaseNode):
     def __str__(self) -> str:
         return f"[class: {self._value}]"
 
-    def add_to_html(self, item: Tag) -> bool:
-        if not self._is_recovered:
+    def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
+        if self.is_frontier() and inc_hidden:
+            class_name = unrecovered_attr_value(self._value)
+        elif self._is_recovered:
+            class_name = self._value
+        else:
             return False
-        cast(AttributeValueList, item[HTML_CLASS_ATTR_NAME]).append(self._value)
+        cast(AttributeValueList, item[HTML_CLASS_ATTR_NAME]).append(class_name)
         return True
 
     def as_attr_value_html_class_node(self) -> AttrValueHTMLClassNode | None:

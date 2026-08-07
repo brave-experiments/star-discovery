@@ -24,6 +24,10 @@ def unrecovered_attr_name(attr_name: str) -> str:
     return f"-@sd-{attr_name}"
 
 
+def unrecovered_attr_value(attr_value: str) -> str:
+    return f"@sd-{attr_value}"
+
+
 def tag_name(elm: Tag) -> str:
     if elm.namespace:
         return f"{elm.namespace}:{elm.name}"

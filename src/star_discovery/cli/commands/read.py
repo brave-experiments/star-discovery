@@ -9,10 +9,9 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 
 from star_discovery.cli.commands.common import (
+    add_common_args,
     CommonArgs,
-    add_db_arg,
-    add_logging_args,
-    validate as common_validate,
+    validate_common_args,
 )
 
 if TYPE_CHECKING:
@@ -39,37 +38,34 @@ class ConsumeArgs:
 def add_subcommand(subparser: argparse._SubParsersAction[ArgumentParser]) -> None:
     consume_parser = subparser.add_parser(
         SUBCOMMAND_NAME,
-        help="Read input files into a star-discovery database.",
+        help="read input files into a star-discovery database",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    consume_parser.add_argument(
-        "-i",
-        "--input",
-        help="Paths to input files (HTML documents)",
-        nargs="*",
-        required=True,
-        type=Path,
-    )
-    consume_parser.add_argument(
-        "-t",
-        "--threshold",
-        default=2,
-        help="The threshold to use when simulating key-recovery (i.e., the K "
-        "in the STAR recovery algorithm)",
-        type=int,
     )
     consume_parser.set_defaults(
         run_func=run,
         subcommand_name=SUBCOMMAND_NAME,
         validate_func=validate,
     )
-    add_db_arg(consume_parser)
-    add_logging_args(consume_parser)
+    add_common_args(consume_parser)
+    consume_parser.add_argument(
+        "input",
+        help="paths to input files (HTML documents)",
+        nargs="+",
+        type=Path,
+    )
+    consume_parser.add_argument(
+        "-t",
+        "--threshold",
+        default=2,
+        help="the threshold to use when simulating key-recovery (i.e., the K "
+        "in the STAR recovery algorithm)",
+        type=int,
+    )
 
 
-def validate_input_arg(input_paths: list[Path]) -> list[InputFile]:
+def validate_input_arg(args: Namespace) -> list[InputFile]:
     parsed_inputs: list[InputFile] = []
-    for input_path in input_paths:
+    for input_path in args.input:
         try:
             html_text = input_path.read_text()
         except FileNotFoundError:
@@ -85,26 +81,26 @@ def validate_input_arg(input_paths: list[Path]) -> list[InputFile]:
     return parsed_inputs
 
 
-def validate_threshold_arg(threshold: int) -> int:
-    if threshold < THRESHOLD_MINIMUM:
+def validate_threshold_arg(args: Namespace) -> int:
+    assert isinstance(args.threshold, int)
+    if args.threshold < THRESHOLD_MINIMUM:
         raise ValueError(
             f"Invalid value for --threshold. Value must be at least {THRESHOLD_MINIMUM}"
         )
-    return threshold
+    return args.threshold
 
 
 def validate(args: Namespace) -> ConsumeArgs:
-    threshold = validate_threshold_arg(int(args.threshold))
-    common_args = common_validate(args, can_create_db=True, threshold=threshold)
-    input_paths = args.input
-    input_data = validate_input_arg(input_paths)
+    threshold = validate_threshold_arg(args)
+    common_args = validate_common_args(args, can_create_db=True, threshold=threshold)
+    input_data = validate_input_arg(args)
     return ConsumeArgs(common_args, input_data, threshold)
 
 
 def run(args: ConsumeArgs) -> int:
     db = args.common.database
     logger = args.common.logger
-    logger.info(f"Starting with database: {db}.")
+    logger.debug(f"Running {SUBCOMMAND_NAME} with database: {db}:")
 
     for input_file in args.inputs:
         input_path = input_file.path.absolute()
@@ -112,8 +108,8 @@ def run(args: ConsumeArgs) -> int:
         db.add_document(input_html, input_path, logger)
 
     for index, doc in enumerate(db.documents()):
-        print(f"{index + 1}. {doc}")
-    print(f"Completed database: {db}.")
+        logger.info(f"{index + 1}. {doc}")
+    logger.info(f"Completed database: {db}.")
 
     db_path = args.common.db_path
     db_path.unlink()

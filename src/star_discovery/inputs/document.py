@@ -63,8 +63,8 @@ class Document:
     def reveal(self, keys: frozenset[RecoveredKey], logger: Logger) -> RevealResult:
         return self._recovery_doc.reveal(keys, logger)
 
-    def recovered_html(self) -> BeautifulSoup:
-        return self._recovery_doc.to_html()
+    def recovered_html(self, inc_hidden: bool = False) -> BeautifulSoup:
+        return self._recovery_doc.to_html(inc_hidden)
 
     def num_frontier_nodes(self) -> int:
         return self._recovery_doc.num_frontier_nodes()

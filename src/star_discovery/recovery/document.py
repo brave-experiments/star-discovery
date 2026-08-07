@@ -45,9 +45,9 @@ class Document:
             f"of {self.source_count().total()} nodes."
         )
 
-    def to_html(self) -> BeautifulSoup:
+    def to_html(self, inc_hidden: bool = False) -> BeautifulSoup:
         doc = BeautifulSoup()
-        self._root_node.add_to_html(doc)
+        self._root_node.add_to_html(doc, inc_hidden)
         return doc
 
     def reveal(self, keys: frozenset[RecoveredKey], logger: Logger) -> RevealResult:

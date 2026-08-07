@@ -3,7 +3,7 @@ from __future__ import annotations
 from hashlib import sha256
 from typing import TYPE_CHECKING
 
-from bs4.element import NavigableString
+from bs4.element import Comment, NavigableString
 
 from star_discovery.summaries import NodeCount
 from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
@@ -27,6 +27,13 @@ class HTMLTextNode(HTMLBaseNode):
         count.add_text_node(item)
         return count
 
+    @classmethod
+    def is_relevant_text(cls, text: NavigableString) -> NavigableString | None:
+        trimmed_text = text.strip()
+        if len(trimmed_text) > 0:
+            return NavigableString(trimmed_text)
+        return None
+
     def __init__(self, parent: HTMLElementBaseNode, elm: NavigableString, index: int):
         text_bytes = elm.output_ready().encode("utf8")
         self._value = sha256(text_bytes, usedforsecurity=False).hexdigest()
@@ -36,11 +43,14 @@ class HTMLTextNode(HTMLBaseNode):
     def __str__(self) -> str:
         return f"[text: '{self.text()}']"
 
-    def add_to_html(self, item: Tag) -> bool:
-        if not self.is_recovered():
-            return False
-        item.append(NavigableString(self._elm))
-        return True
+    def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
+        if self.is_frontier() and inc_hidden:
+            item.append(Comment(self._elm))
+            return True
+        if self._is_recovered:
+            item.append(NavigableString(self._elm))
+            return True
+        return False
 
     def text(self, max_chars: int = 10) -> str:
         text = self._elm.output_ready()

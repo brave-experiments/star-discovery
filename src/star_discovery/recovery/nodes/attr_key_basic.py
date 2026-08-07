@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from star_discovery.bs_helpers import unrecovered_attr_name
 from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
 from star_discovery.recovery.nodes.attr_value_basic import AttrValueBasicNode
 
@@ -31,13 +32,17 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
     def __str__(self) -> str:
         return f"[attr: {self._value}=]"
 
-    def add_to_html(self, item: Tag) -> bool:
-        if not self._is_recovered:
-            return False
-        item[self._value] = ""
-        if self._attr_value_node:
-            self._attr_value_node.add_to_html(item)
-        return True
+    def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
+        if self.is_frontier() and inc_hidden:
+            attr_name = unrecovered_attr_name(self._value)
+            item[attr_name] = self._attr_value
+            return True
+        if self._is_recovered:
+            item[self._value] = ""
+            if self._attr_value_node:
+                self._attr_value_node.add_to_html(item, inc_hidden)
+            return True
+        return False
 
     def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
         success, result = self._reveal_self(keys)
