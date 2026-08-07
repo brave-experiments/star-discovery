@@ -3,7 +3,7 @@ name = "star-discovery"
 authors = [{name = "Peter Snyder", email = "pes@brave.com"}]
 license = "MIT"
 readme = "README.md"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
     "beautifulsoup4==4.15.0",
     "packaging==26.2",
