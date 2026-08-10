@@ -13,12 +13,10 @@ from star_discovery.recovery.nodes.html_text import HTMLTextNode
 from star_discovery.summaries import NodeCount, RevealResult
 
 if TYPE_CHECKING:
+    from bs4.element import AttributeValueList
+
+    from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
-    from star_discovery.recovery.type_aliases import (
-        BSItem,
-        HTMLClasses,
-        RecoveredKey,
-    )
     from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
 
 
@@ -39,7 +37,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
 
     @override
     @classmethod
-    def count_for_source_item(cls, item: BSItem) -> NodeCount:
+    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
         assert isinstance(item, Tag)
         count: NodeCount = NodeCount()
 
@@ -104,7 +102,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return False
 
     @override
-    def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
+    def reveal(self, keys: KeyCollection) -> RevealResult:
         success, result = self._reveal_self(keys)
         if not success:
             return result
@@ -162,7 +160,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return f"<{tag_name(self._elm)}>"
 
     def _reveal_attr_key_html_class_node(
-        self, keys: frozenset[RecoveredKey], html_classes: HTMLClasses
+        self, keys: KeyCollection, html_classes: AttributeValueList
     ) -> RevealResult:
         # We should never see more than one HTML class attribute
         # on a HTML element.
@@ -177,7 +175,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return child_reveal_result
 
     def _reveal_attr_key_basic_node(
-        self, keys: frozenset[RecoveredKey], attr_name: str, attr_value: str
+        self, keys: KeyCollection, attr_name: str, attr_value: str
     ) -> RevealResult:
         assert isinstance(attr_value, str)
 
@@ -189,7 +187,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return new_attr_node.reveal(keys)
 
     def _reveal_html_elm_body_node(
-        self, keys: frozenset[RecoveredKey], elm: Tag, index: int
+        self, keys: KeyCollection, elm: Tag, index: int
     ) -> RevealResult:
         html_instance_node = self.as_html_elm_node()
         assert html_instance_node
@@ -199,7 +197,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return child_html_elm.reveal(keys)
 
     def _reveal_html_text_node(
-        self, keys: frozenset[RecoveredKey], text: NavigableString, index: int
+        self, keys: KeyCollection, text: NavigableString, index: int
     ) -> RevealResult:
         html_instance_node = self.as_html_elm_node()
         assert html_instance_node
@@ -212,7 +210,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
 class HTMLElementBodyNode(HTMLElementBaseNode):
 
     @classmethod
-    def count_for_source_item(cls, item: BSItem) -> NodeCount:
+    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
         assert isinstance(item, Tag)
         count: NodeCount = NodeCount()
         count.add_html_node(tag_name(item))

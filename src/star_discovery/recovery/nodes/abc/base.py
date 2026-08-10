@@ -2,35 +2,36 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import ClassVar, TYPE_CHECKING
 
+from star_discovery.key_store import NodeTag
 from star_discovery.summaries import NodeCount, RevealResult
 
 if TYPE_CHECKING:
-    from typing import ClassVar
+    from bs4.element import Tag, NavigableString
 
-    from bs4.element import Tag
-
+    from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
+    from star_discovery.recovery.nodes.abc.attr_key_base import (
+        AttrKeyBaseNode,
+    )
     from star_discovery.recovery.nodes.attr_key_basic import AttrKeyBasicNode
     from star_discovery.recovery.nodes.attr_key_html_class import AttrKeyHTMLClassNode
     from star_discovery.recovery.nodes.attr_value_basic import AttrValueBasicNode
     from star_discovery.recovery.nodes.attr_value_html_class import (
         AttrValueHTMLClassNode,
     )
-    from star_discovery.recovery.nodes.html_element_body import HTMLElementBodyNode
+    from star_discovery.recovery.nodes.html_element_body import (
+        HTMLElementBaseNode,
+        HTMLElementBodyNode,
+    )
     from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
     from star_discovery.recovery.nodes.html_text import HTMLTextNode
-    from star_discovery.recovery.type_aliases import (
-        BSItem,
-        ChildHavingNode,
-        KeyMaterial,
-        RecoveredKey,
-        RevealResultSelf,
-    )
 
 
 PATH_SEPARATOR = "|"
+
+type RevealResultSelf = tuple[bool, RevealResult]
 
 
 class BaseNode(ABC):
@@ -41,14 +42,14 @@ class BaseNode(ABC):
     SEGMENT_PREFIX: ClassVar[str]
 
     _is_recovered: bool = False
-    _parent: ChildHavingNode | None
+    _parent: HTMLElementBaseNode | AttrKeyBaseNode | None
     _value: str
 
     @classmethod
-    def count_for_source_item(cls, item: BSItem) -> NodeCount:
+    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
         raise NotImplementedError()
 
-    def __init__(self, parent: ChildHavingNode | None):
+    def __init__(self, parent: HTMLElementBaseNode | AttrKeyBaseNode | None):
         self._is_recovered = False
 
         # It should never be the case that we're tracking a recoverable node
@@ -69,15 +70,15 @@ class BaseNode(ABC):
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         raise NotImplementedError()
 
-    def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
+    def reveal(self, keys: KeyCollection) -> RevealResult:
         _, result = self._reveal_self(keys)
         return result
 
     @cached_property
-    def path(self) -> KeyMaterial:
-        path_str = self._parent.path if self._parent else PATH_SEPARATOR
+    def node_tag(self) -> NodeTag:
+        path_str = self._parent.node_tag if self._parent else PATH_SEPARATOR
         path_str += PATH_SEPARATOR + self._path_segment()
-        return path_str
+        return NodeTag(path_str)
 
     def as_html_elm_root_node(self) -> HTMLElementRootNode | None:
         return None
@@ -115,9 +116,9 @@ class BaseNode(ABC):
     def _path_segment(self) -> str:
         return f"({self.__class__.SEGMENT_PREFIX})-{self._path_segment_value()}"
 
-    def _reveal_self(self, keys: frozenset[RecoveredKey]) -> RevealResultSelf:
+    def _reveal_self(self, keys: KeyCollection) -> RevealResultSelf:
         assert not self._is_recovered
-        if self.path not in keys:
+        if self.node_tag not in keys:
             return False, RevealResult.from_frontier(self)
         self._is_recovered = True
         return True, RevealResult.from_recovered(self)

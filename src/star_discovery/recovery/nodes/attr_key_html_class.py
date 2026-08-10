@@ -10,11 +10,11 @@ from star_discovery.recovery.nodes.attr_value_html_class import AttrValueHTMLCla
 from star_discovery.summaries import NodeCount
 
 if TYPE_CHECKING:
-    from bs4.element import Tag
+    from bs4.element import Tag, NavigableString
 
+    from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
-    from star_discovery.recovery.type_aliases import BSItem, RecoveredKey
     from star_discovery.summaries import RevealResult
 
 
@@ -34,7 +34,7 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
 
     @override
     @classmethod
-    def count_for_source_item(cls, item: BSItem) -> NodeCount:
+    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
         assert isinstance(item, str)
         count: NodeCount = NodeCount()
         count.add_attr_name(HTML_CLASS_ATTR_NAME)
@@ -62,7 +62,7 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
         return False
 
     @override
-    def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
+    def reveal(self, keys: KeyCollection) -> RevealResult:
         success, result = self._reveal_self(keys)
         if not success:
             return result

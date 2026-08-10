@@ -12,8 +12,8 @@ from star_discovery.recovery.document import create, Document as RecoveryDocumen
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
-    from star_discovery.recovery.type_aliases import RecoveredKey
 
 
 @dataclass
@@ -60,7 +60,7 @@ class Document:
     def summary(self, logger: Logger | None = None) -> RecoverySummary:
         return RecoverySummary(self.recovered_count(logger), self.source_count())
 
-    def reveal(self, keys: frozenset[RecoveredKey], logger: Logger) -> RevealResult:
+    def reveal(self, keys: KeyCollection, logger: Logger) -> RevealResult:
         return self._recovery_doc.reveal(keys, logger)
 
     def recovered_html(self, inc_hidden: bool = False) -> BeautifulSoup:

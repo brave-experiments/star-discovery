@@ -10,16 +10,16 @@ from star_discovery.summaries import NodeCount
 
 if TYPE_CHECKING:
     from bs4 import BeautifulSoup
+    from bs4.element import NavigableString
 
     from star_discovery.logging import Logger
-    from star_discovery.recovery.type_aliases import BSItem
 
 
 class HTMLElementRootNode(HTMLElementBaseNode):
 
     @override
     @classmethod
-    def count_for_source_item(cls, item: BSItem) -> NodeCount:
+    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
         assert isinstance(item, Tag)
         count: NodeCount = NodeCount()
         count.add_html_node(tag_name(item))

@@ -6,9 +6,9 @@ from bs4 import BeautifulSoup
 
 from star_discovery.summaries import NodeCount, RevealResult
 from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
-from star_discovery.recovery.type_aliases import RecoveredKey
 
 if TYPE_CHECKING:
+    from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.abc.base import BaseNode
 
@@ -50,7 +50,7 @@ class Document:
         self._root_node.add_to_html(doc, inc_hidden)
         return doc
 
-    def reveal(self, keys: frozenset[RecoveredKey], logger: Logger) -> RevealResult:
+    def reveal(self, keys: KeyCollection, logger: Logger) -> RevealResult:
         result = RevealResult()
         for node in self._frontier_nodes:
             node_result = node.reveal(keys)

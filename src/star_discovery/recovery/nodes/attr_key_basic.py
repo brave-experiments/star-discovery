@@ -9,8 +9,8 @@ from star_discovery.recovery.nodes.attr_value_basic import AttrValueBasicNode
 if TYPE_CHECKING:
     from bs4.element import Tag
 
+    from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
-    from star_discovery.recovery.type_aliases import RecoveredKey
     from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
     from star_discovery.summaries import RevealResult, NodeCount
 
@@ -47,7 +47,7 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
         return False
 
     @override
-    def reveal(self, keys: frozenset[RecoveredKey]) -> RevealResult:
+    def reveal(self, keys: KeyCollection) -> RevealResult:
         success, result = self._reveal_self(keys)
         if not success:
             return result

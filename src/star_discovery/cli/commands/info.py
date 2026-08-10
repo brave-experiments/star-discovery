@@ -6,8 +6,6 @@ from dataclasses import dataclass
 import json
 from typing import Any, Literal, Final, TYPE_CHECKING
 
-from tabulate import tabulate
-
 from star_discovery.cli.commands.common import (
     add_common_args,
     add_indexes_arg,
@@ -37,7 +35,7 @@ class InfoArgs:
 def add_subcommand(subparser: argparse._SubParsersAction[ArgumentParser]) -> None:
     parser = subparser.add_parser(
         SUBCOMMAND_NAME,
-        help="query information about documents from a star-discovery database.",
+        help="query information about documents from a star-discovery database",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.set_defaults(
@@ -66,39 +64,84 @@ def validate(args: Namespace) -> InfoArgs:
 
 
 def summary_as_table(summary: RecoverySummary) -> str:
-    headers = ["", "source #", "revealed #", "revealed %"]
-    html_node_row = [
-        "html nodes",
-        summary.source.html_node_count(),
-        summary.recovered.html_node_count(),
-        round(summary.html_node_recovery_pct(), 2),
+    first_col_width = 20
+    type MarkupRow = tuple[str, str, str]
+    markup_rows: list[MarkupRow] = [
+        (
+            "source #",
+            "revealed #",
+            "revealed %",
+        ),
+        (
+            "    ----",
+            "      ----",
+            "      ----",
+        ),
     ]
-    text_node_row = [
-        "text nodes",
-        summary.source.text_node_count(),
-        summary.recovered.text_node_count(),
-        round(summary.text_node_recovery_pct(), 2),
+
+    def _format_markup(row: MarkupRow) -> str:
+        output: str = " " * first_col_width
+        output += "  ".join(row)
+        return output
+
+    type DataRow = tuple[str, int, int, float]
+    body_rows: list[DataRow] = [
+        (
+            "html nodes",
+            summary.source.html_node_count(),
+            summary.recovered.html_node_count(),
+            summary.html_node_recovery_pct(),
+        ),
+        (
+            "text nodes",
+            summary.source.text_node_count(),
+            summary.recovered.text_node_count(),
+            summary.text_node_recovery_pct(),
+        ),
+        (
+            "html attributes",
+            summary.source.attr_name_count(),
+            summary.recovered.attr_name_count(),
+            summary.attr_name_recovery_pct(),
+        ),
+        (
+            "html classes",
+            summary.source.html_class_count(),
+            summary.recovered.html_class_count(),
+            summary.html_class_recovery_pct(),
+        ),
+        (
+            "other attrs values",
+            summary.source.attr_value_count(),
+            summary.recovered.attr_value_count(),
+            summary.attr_value_recovery_pct(),
+        ),
     ]
-    attrs_row = [
-        "html attributes",
-        summary.source.attr_name_count(),
-        summary.recovered.attr_name_count(),
-        round(summary.attr_name_recovery_pct(), 2),
-    ]
-    attr_values_row = [
-        "attr values (non-classes)",
-        summary.source.attr_value_count(),
-        summary.recovered.attr_value_count(),
-        round(summary.attr_value_recovery_pct(), 2),
-    ]
-    html_classes_row = [
-        "html classes",
-        summary.source.html_class_count(),
-        summary.recovered.html_class_count(),
-        round(summary.html_class_recovery_pct(), 2),
-    ]
-    rows = [html_node_row, text_node_row, attrs_row, attr_values_row, html_classes_row]
-    return tabulate(rows, headers)
+
+    def _format_data(row: DataRow) -> str:
+        column, source_num, recover_num, pct = row
+        return f"{column:<18}  {source_num:>8}    {recover_num:>8}    {pct:>8.2f}"
+
+    table_output = "\n".join((_format_markup(x) for x in markup_rows))
+    table_output += "\n" + "\n".join((_format_data(x) for x in body_rows))
+
+    footer_row: MarkupRow = (
+        "    ====",
+        "      ====",
+        "      ====",
+    )
+    source_total = sum((x[1] for x in body_rows))
+    recovery_total = sum((x[2] for x in body_rows))
+    total_row: DataRow = (
+        "total",
+        source_total,
+        recovery_total,
+        recovery_total / float(source_total),
+    )
+
+    table_output += "\n" + _format_markup(footer_row)
+    table_output += "\n" + _format_data(total_row)
+    return table_output
 
 
 def summary_as_json(summary: RecoverySummary) -> JsonData:

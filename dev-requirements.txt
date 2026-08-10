@@ -46,12 +46,8 @@ pytokens==0.4.1
     # via black
 soupsieve==2.8.4
     # via beautifulsoup4
-tabulate==0.10.0
-    # via star-discovery (pyproject.toml)
 tomlkit==0.15.0
     # via pylint
-types-tabulate==0.10.0.20260508
-    # via star-discovery (pyproject.toml)
 typing-extensions==4.16.0
     # via
     #   beautifulsoup4

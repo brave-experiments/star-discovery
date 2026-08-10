@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
     from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
-    from star_discovery.recovery.type_aliases import BSItem
 
 
 class HTMLTextNode(HTMLBaseNode):
@@ -23,7 +22,7 @@ class HTMLTextNode(HTMLBaseNode):
 
     @override
     @classmethod
-    def count_for_source_item(cls, item: BSItem) -> NodeCount:
+    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
         assert isinstance(item, NavigableString)
         count: NodeCount = NodeCount()
         count.add_text_node(item)
