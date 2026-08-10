@@ -82,8 +82,8 @@ class Database:
         for index, doc in enumerate(self._documents):
             doc_result = doc.reveal(current_keys, logger)
             logger.debug(
-                f"    Round {self._round} (Doc {index + 1} / {self.num_docs()}): "
-                + str(doc_result),
+                f"    Round {self._round} "
+                f"(Doc {index + 1} / {self.num_docs()}): {doc_result}",
             )
             results_per_doc.append((doc, doc_result))
             result.merge_in(doc_result)
@@ -122,11 +122,11 @@ class Database:
         any_new_keys = False
         any_new_nodes = prev_state.total < curr_state.total
         while any_new_keys or any_new_nodes:
-            prev_state = self.recovery_state()
-
+            prev_state = curr_state
             self._round += 1
             logger.debug(
-                f"Round {self._round} start:{len(self._key_store.recovered_keys())} keys",
+                f"Round {self._round} start: "
+                f"{len(self._key_store.recovered_keys())} keys",
             )
 
             reveal_result = self.reveal_round(logger)
