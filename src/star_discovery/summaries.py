@@ -67,7 +67,9 @@ class SubtreeSummary:
     attr_names: dict[str, int] = field(default_factory=dict)
     attr_values: dict[str, int] = field(default_factory=dict)
     html_classes: dict[str, int] = field(default_factory=dict)
-    _cache: dict[str, int | None] = field(default_factory=dict, init=False)
+    _cache: dict[str, int | None] = field(
+        default_factory=dict, init=False, compare=False
+    )
 
     @staticmethod
     def with_html_node(item: str) -> SubtreeSummary:
