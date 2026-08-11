@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 
-from star_discovery.summaries import NodeCount, RevealResult
+from star_discovery.summaries import SubtreeSummary, RevealResult
 from star_discovery.recovery.document import create, Document as RecoveryDocument
 
 if TYPE_CHECKING:
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class RecoverySummary:
-    recovered: NodeCount
-    source: NodeCount
+    recovered: SubtreeSummary
+    source: SubtreeSummary
 
     def html_node_recovery_pct(self) -> float:
         return self.recovered.html_node_count() / float(self.source.html_node_count())
@@ -52,13 +52,13 @@ class Document:
 
     def recovery_desc(self) -> str:
         return (
-            f"{self.recovered_count().total()} of "
-            f"{self.source_count().total()} nodes recovered "
+            f"{self.recovered_summary().total()} of "
+            f"{self.source_summary().total()} nodes recovered "
             f"({self.pct_recovered()}%)"
         )
 
     def summary(self, logger: Logger | None = None) -> RecoverySummary:
-        return RecoverySummary(self.recovered_count(logger), self.source_count())
+        return RecoverySummary(self.recovered_summary(logger), self.source_summary())
 
     def reveal(self, keys: KeyCollection, logger: Logger) -> RevealResult:
         return self._recovery_doc.reveal(keys, logger)
@@ -75,12 +75,15 @@ class Document:
     def num_known_nodes(self) -> int:
         return self._recovery_doc.num_known_nodes()
 
-    def recovered_count(self, logger: Logger | None = None) -> NodeCount:
-        return self._recovery_doc.recovered_count(logger)
+    def recovered_summary(self, logger: Logger | None = None) -> SubtreeSummary:
+        return self._recovery_doc.recovered_summary(logger)
 
-    def source_count(self) -> NodeCount:
-        return self._recovery_doc.source_count()
+    def source_summary(self) -> SubtreeSummary:
+        return self._recovery_doc.source_summary()
 
     def pct_recovered(self) -> float:
-        total_pct = self.recovered_count().total() / self.source_count().total()
+        total_pct = self.recovered_summary().total() / self.source_summary().total()
         return round(total_pct, 2)
+
+    def validate(self) -> bool:
+        return self._recovery_doc.validate()

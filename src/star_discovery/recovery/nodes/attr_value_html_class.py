@@ -6,13 +6,13 @@ from bs4.element import AttributeValueList
 
 from star_discovery.bs_helpers import unrecovered_attr_value
 from star_discovery.recovery.nodes.abc.base import BaseNode
+from star_discovery.summaries import SubtreeSummary
 
 if TYPE_CHECKING:
     from bs4.element import Tag
 
     from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.attr_key_html_class import AttrKeyHTMLClassNode
-    from star_discovery.summaries import NodeCount
 
 
 HTML_CLASS_ATTR_NAME = "class"
@@ -44,10 +44,14 @@ class AttrValueHTMLClassNode(BaseNode):
         return self
 
     @override
-    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc(logger)):
+    def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
+        if not (count := super().summary_for_recovered_doc(logger)):
             return None
         if logger:
-            logger.debug(f"adding html class to NodeCount: {self._value}")
+            logger.debug(f"adding html class to SubtreeSummary: {self._value}")
         count.add_html_class(self._value)
         return count
+
+    @override
+    def source_summary(self) -> SubtreeSummary:
+        return SubtreeSummary.with_html_class(self._value)

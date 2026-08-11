@@ -5,6 +5,7 @@ from typing import ClassVar, override, TYPE_CHECKING
 from star_discovery.bs_helpers import unrecovered_attr_name
 from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
 from star_discovery.recovery.nodes.attr_value_basic import AttrValueBasicNode
+from star_discovery.summaries import SubtreeSummary
 
 if TYPE_CHECKING:
     from bs4.element import Tag
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
     from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
-    from star_discovery.summaries import RevealResult, NodeCount
+    from star_discovery.summaries import RevealResult
 
 
 class AttrKeyBasicNode(AttrKeyBaseNode):
@@ -62,13 +63,20 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
         return self
 
     @override
-    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc(logger)):
+    def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
+        if not (count := super().summary_for_recovered_doc(logger)):
             return None
         if logger:
-            logger.debug(f"adding attr to NodeCount: {self._value}")
+            logger.debug(f"adding attr to SubtreeSummary: {self._value}")
         count.add_attr_name(self._value)
         if self._attr_value_node:
-            if value_count := self._attr_value_node.count_for_recovered_doc(logger):
-                count = count.combine(value_count)
+            if value_count := self._attr_value_node.summary_for_recovered_doc(logger):
+                count += value_count
         return count
+
+    @override
+    def source_summary(self) -> SubtreeSummary:
+        summary = SubtreeSummary()
+        summary.add_attr_name(self._value)
+        summary.add_attr_value(self._attr_value)
+        return summary

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 
-from star_discovery.summaries import NodeCount, RevealResult
+from star_discovery.summaries import SubtreeSummary, RevealResult
 from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
 
 if TYPE_CHECKING:
@@ -41,8 +41,8 @@ class Document:
     def __str__(self) -> str:
         return (
             f"Input document '{self.desc}': "
-            f"recovered {self.recovered_count().total()} "
-            f"of {self.source_count().total()} nodes."
+            f"recovered {self.recovered_summary().total()} "
+            f"of {self.source_summary().total()} nodes."
         )
 
     def to_html(self, inc_hidden: bool = False) -> BeautifulSoup:
@@ -74,15 +74,29 @@ class Document:
     def num_known_nodes(self) -> int:
         return self.num_frontier_nodes() + self.num_recovered_nodes()
 
-    def recovered_count(self, logger: Logger | None = None) -> NodeCount:
-        if not (count := self._root_node.recovered_count(logger)):
+    def recovered_summary(self, logger: Logger | None = None) -> SubtreeSummary:
+        if not (count := self._root_node.recovered_summary(logger)):
             if logger:
-                logger.debug("document contains no recovered nodes for NodeCount")
-            return NodeCount()
+                logger.debug("document contains no recovered nodes for SubtreeSummary")
+            return SubtreeSummary()
         return count
 
-    def source_count(self) -> NodeCount:
-        return self._root_node.source_count()
+    def source_summary(self) -> SubtreeSummary:
+        return self._root_node.source_summary()
+
+    def validate(self) -> bool:
+        """Perform a number of internal consistency checks that are too
+        expensive to check in normal use."""
+
+        # Check to make sure all nodes in the HTML document are correctly
+        # accounted for.
+        source_nodes = self.source_summary()
+        revealed_nodes = self.recovered_summary()
+        hidden_nodes = SubtreeSummary()
+        for frontier_node in self._frontier_nodes:
+            hidden_nodes += frontier_node.source_summary()
+        assert source_nodes == (revealed_nodes + hidden_nodes)
+        return True
 
 
 def create(desc: str, html_doc: BeautifulSoup) -> Document:

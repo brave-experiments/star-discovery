@@ -6,6 +6,9 @@ from typing import override, TYPE_CHECKING
 from star_discovery.recovery.nodes.abc.base import BaseNode
 
 if TYPE_CHECKING:
+    from bs4.element import NavigableString, Tag
+
+    from star_discovery.summaries import SubtreeSummary
     from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
 
 
@@ -19,7 +22,15 @@ class HTMLBaseNode(BaseNode, ABC):
     """The location of this page element (HTML element, text node)
     amongst its peers within its parent node."""
 
-    def __init__(self, parent: HTMLElementBaseNode | None, index: int = 0):
+    _elm: NavigableString | Tag
+
+    def __init__(
+        self,
+        parent: HTMLElementBaseNode | None,
+        elm: NavigableString | Tag,
+        index: int = 0,
+    ):
+        self._elm = elm
         self._index = index
         super().__init__(parent)
 

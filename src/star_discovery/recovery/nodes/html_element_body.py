@@ -10,7 +10,7 @@ from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
 from star_discovery.recovery.nodes.attr_key_basic import AttrKeyBasicNode
 from star_discovery.recovery.nodes.attr_key_html_class import AttrKeyHTMLClassNode
 from star_discovery.recovery.nodes.html_text import HTMLTextNode
-from star_discovery.summaries import NodeCount, RevealResult
+from star_discovery.summaries import SubtreeSummary, RevealResult
 
 if TYPE_CHECKING:
     from bs4.element import AttributeValueList
@@ -37,42 +37,37 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
 
     @override
     @classmethod
-    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
-        assert isinstance(item, Tag)
-        count: NodeCount = NodeCount()
-
+    def summary_for_source_item(cls, item: Tag) -> SubtreeSummary:
+        summary = SubtreeSummary.with_html_node(tag_name(item))
         for attr_name, attr_value in item.attrs.items():
-            count.add_attr_name(attr_name)
+            summary.add_attr_name(attr_name)
             if attr_name == HTML_CLASS_ATTR_NAME:
                 assert not isinstance(attr_value, str)
                 for a_html_class in attr_value:
-                    count.add_html_class(a_html_class)
+                    summary.add_html_class(a_html_class)
             else:
                 assert isinstance(attr_value, str)
-                count.add_attr_value(attr_value)
+                summary.add_attr_value(attr_value)
 
         for child in item.children:
             if isinstance(child, Tag):
-                child_count = HTMLElementBodyNode.count_for_source_item(child)
-                count = count.combine(child_count)
+                summary += HTMLElementBodyNode.summary_for_source_item(child)
             elif isinstance(child, NavigableString):
                 if trim_text := HTMLTextNode.is_relevant_text(child):
-                    child_count = HTMLTextNode.count_for_source_item(trim_text)
-                    count = count.combine(child_count)
+                    summary.add_text_node(trim_text)
             else:
                 raise unexpected_elm_error(child)
-        return count
+        return summary
 
     def __init__(self, parent: HTMLElementBaseNode | None, elm: Tag, index: int = 0):
         # We should always have a parent recoverable node for an HTML element,
         # unless the node in the HTML document this recoverable node item
         # is tracking does not have a parent (i.e., it is the parent node).
         assert parent or not elm._parent
-        self._elm = elm
         self._value = tag_name(elm)
         self._child_nodes = []
         self._basic_attrs = {}
-        super().__init__(parent, index)
+        super().__init__(parent, elm, index)
 
     def __str__(self) -> str:
         return f"[elm: {self.tag()}]"
@@ -139,22 +134,26 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         return result
 
     @override
-    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc(logger)):
+    def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
+        if not (count := super().summary_for_recovered_doc(logger)):
             return None
         if logger:
-            logger.debug(f"adding html node to NodeCount: {tag_name(self._elm)}")
+            logger.debug(f"adding html node to SubtreeSummary: {tag_name(self._elm)}")
         count.add_html_node(tag_name(self._elm))
         for child in self._child_nodes:
-            if child_count := child.count_for_recovered_doc(logger):
-                count = count.combine(child_count)
+            if child_count := child.summary_for_recovered_doc(logger):
+                count += child_count
         for basic_attr in self._basic_attrs.values():
-            if attr_count := basic_attr.count_for_recovered_doc(logger):
-                count = count.combine(attr_count)
+            if attr_count := basic_attr.summary_for_recovered_doc(logger):
+                count += attr_count
         if self._html_class_attr:
-            if class_count := self._html_class_attr.count_for_recovered_doc(logger):
-                count = count.combine(class_count)
+            if class_count := self._html_class_attr.summary_for_recovered_doc(logger):
+                count += class_count
         return count
+
+    @override
+    def source_summary(self) -> SubtreeSummary:
+        return HTMLElementBaseNode.summary_for_source_item(self._elm)
 
     def tag(self) -> str:
         return f"<{tag_name(self._elm)}>"
@@ -208,14 +207,6 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
 
 
 class HTMLElementBodyNode(HTMLElementBaseNode):
-
-    @classmethod
-    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
-        assert isinstance(item, Tag)
-        count: NodeCount = NodeCount()
-        count.add_html_node(tag_name(item))
-        super_count = super(HTMLElementBodyNode, cls).count_for_source_item(item)
-        return count.combine(super_count)
 
     def __init__(self, parent: HTMLElementBaseNode, elm: Tag, index: int = 0):
         super().__init__(parent, elm, index)

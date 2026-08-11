@@ -5,7 +5,7 @@ from typing import ClassVar, override, TYPE_CHECKING
 
 from bs4.element import Comment, NavigableString
 
-from star_discovery.summaries import NodeCount
+from star_discovery.summaries import SubtreeSummary
 from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
 
 if TYPE_CHECKING:
@@ -20,14 +20,6 @@ class HTMLTextNode(HTMLBaseNode):
 
     _elm: NavigableString
 
-    @override
-    @classmethod
-    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
-        assert isinstance(item, NavigableString)
-        count: NodeCount = NodeCount()
-        count.add_text_node(item)
-        return count
-
     @classmethod
     def is_relevant_text(cls, text: NavigableString) -> NavigableString | None:
         trimmed_text = text.strip()
@@ -39,8 +31,7 @@ class HTMLTextNode(HTMLBaseNode):
         trimmed_text = elm.output_ready().strip()
         text_bytes = trimmed_text.encode("utf8")
         self._value = sha256(text_bytes, usedforsecurity=False).hexdigest()
-        self._elm = NavigableString(trimmed_text)
-        super().__init__(parent, index)
+        super().__init__(parent, NavigableString(trimmed_text), index)
 
     def __str__(self) -> str:
         return f"[text: '{self.trim()}']"
@@ -60,13 +51,17 @@ class HTMLTextNode(HTMLBaseNode):
         return self
 
     @override
-    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc(logger)):
+    def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
+        if not (count := super().summary_for_recovered_doc(logger)):
             return None
         if logger:
-            logger.debug(f"adding text to NodeCount: {self.trim()}")
+            logger.debug(f"adding text to SubtreeSummary: {self.trim()}")
         count.add_text_node(self._elm)
         return count
+
+    @override
+    def source_summary(self) -> SubtreeSummary:
+        return SubtreeSummary.with_text_node(self._elm)
 
     def trim(self, max_length: int = 10) -> str:
         if len(self._elm) <= max_length:

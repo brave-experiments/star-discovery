@@ -5,7 +5,7 @@ from functools import cached_property
 from typing import ClassVar, TYPE_CHECKING
 
 from star_discovery.key_store import NodeTag
-from star_discovery.summaries import NodeCount, RevealResult
+from star_discovery.summaries import SubtreeSummary, RevealResult
 
 if TYPE_CHECKING:
     from bs4.element import Tag, NavigableString
@@ -46,8 +46,8 @@ class BaseNode(ABC):
     _value: str
 
     @classmethod
-    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
-        raise NotImplementedError()
+    def summary_for_source_item(cls, item: Tag) -> SubtreeSummary:
+        raise NotImplementedError("summary_for_source_item", cls)
 
     def __init__(self, parent: HTMLElementBaseNode | AttrKeyBaseNode | None):
         self._is_recovered = False
@@ -57,9 +57,6 @@ class BaseNode(ABC):
         assert not parent or parent._is_recovered
         self._parent = parent
 
-    def __str__(self) -> str:
-        raise NotImplementedError()
-
     def is_frontier(self) -> bool:
         is_root_or_recovered_parent = not self._parent or self._parent.is_recovered()
         return is_root_or_recovered_parent and not self.is_recovered()
@@ -68,11 +65,14 @@ class BaseNode(ABC):
         return self._is_recovered
 
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
-        raise NotImplementedError()
+        raise NotImplementedError("add_to_html", self)
 
     def reveal(self, keys: KeyCollection) -> RevealResult:
         _, result = self._reveal_self(keys)
         return result
+
+    def source_summary(self) -> SubtreeSummary:
+        raise NotImplementedError("source_summary", self)
 
     @cached_property
     def node_tag(self) -> NodeTag:
@@ -105,10 +105,10 @@ class BaseNode(ABC):
         return None
 
     # pylint: disable-next=unused-argument
-    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
+    def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
         if not self._is_recovered:
             return None
-        return NodeCount()
+        return SubtreeSummary()
 
     def _path_segment_value(self) -> str:
         return self._value

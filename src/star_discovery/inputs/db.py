@@ -87,6 +87,8 @@ class Database:
             )
             results_per_doc.append((doc, doc_result))
             result.merge_in(doc_result)
+            if __debug__:
+                doc.validate()
         return results_per_doc
 
     def collect_round(self, reveal_results: list[DocRevealResult]) -> None:

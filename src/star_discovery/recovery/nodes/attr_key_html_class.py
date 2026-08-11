@@ -7,10 +7,10 @@ from bs4.element import AttributeValueList
 from star_discovery.bs_helpers import unrecovered_attr_name
 from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
 from star_discovery.recovery.nodes.attr_value_html_class import AttrValueHTMLClassNode
-from star_discovery.summaries import NodeCount
+from star_discovery.summaries import SubtreeSummary
 
 if TYPE_CHECKING:
-    from bs4.element import Tag, NavigableString
+    from bs4.element import Tag
 
     from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
@@ -31,14 +31,6 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
     class name) if this current `AttrHTMLClassNode` instance is recovered."""
 
     _html_class_nodes: list[AttrValueHTMLClassNode] | None
-
-    @override
-    @classmethod
-    def count_for_source_item(cls, item: Tag | NavigableString) -> NodeCount:
-        assert isinstance(item, str)
-        count: NodeCount = NodeCount()
-        count.add_attr_name(HTML_CLASS_ATTR_NAME)
-        return count
 
     def __init__(self, parent: HTMLElementBaseNode, html_classes: list[str]):
         self._html_classes = html_classes
@@ -79,15 +71,23 @@ class AttrKeyHTMLClassNode(AttrKeyBaseNode):
         return self
 
     @override
-    def count_for_recovered_doc(self, logger: Logger | None) -> NodeCount | None:
-        if not (count := super().count_for_recovered_doc(logger)):
+    def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
+        if not (count := super().summary_for_recovered_doc(logger)):
             return None
         if logger:
-            logger.debug(f"adding attr to NodeCount: {HTML_CLASS_ATTR_NAME}")
+            logger.debug(f"adding attr to SubtreeSummary: {HTML_CLASS_ATTR_NAME}")
         count.add_attr_name(HTML_CLASS_ATTR_NAME)
         if not self._html_class_nodes:
             return count
         for html_class_node in self._html_class_nodes:
-            if html_class_count := html_class_node.count_for_recovered_doc(logger):
-                count = count.combine(html_class_count)
+            if html_class_count := html_class_node.summary_for_recovered_doc(logger):
+                count += html_class_count
         return count
+
+    @override
+    def source_summary(self) -> SubtreeSummary:
+        summary = SubtreeSummary()
+        summary.add_attr_name(HTML_CLASS_ATTR_NAME)
+        for html_class in self._html_classes:
+            summary.add_html_class(html_class)
+        return summary
