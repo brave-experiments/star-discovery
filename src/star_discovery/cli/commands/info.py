@@ -105,12 +105,6 @@ def summary_as_table(summary: RecoverySummary) -> str:
             summary.attr_name_recovery_pct(),
         ),
         (
-            "html classes",
-            summary.source.html_class_count(),
-            summary.recovered.html_class_count(),
-            summary.html_class_recovery_pct(),
-        ),
-        (
             "other attrs values",
             summary.source.attr_value_count(),
             summary.recovered.attr_value_count(),
@@ -165,11 +159,6 @@ def summary_as_json(summary: RecoverySummary) -> JsonData:
             "source": summary.source.attr_value_count(),
             "recovered": summary.recovered.attr_value_count(),
             "recovered_pct": round(summary.attr_value_recovery_pct(), 2),
-        },
-        "html classes": {
-            "source": summary.source.html_class_count(),
-            "recovered": summary.recovered.html_class_count(),
-            "recovered_pct": round(summary.html_class_recovery_pct(), 2),
         },
     }
 

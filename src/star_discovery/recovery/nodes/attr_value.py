@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import ClassVar, override, TYPE_CHECKING
 
+from bs4.element import AttributeValueList
+
 from star_discovery.bs_helpers import unrecovered_attr_value
 from star_discovery.recovery.nodes.abc.base import BaseNode
 from star_discovery.summaries import SubtreeSummary
@@ -10,15 +12,14 @@ if TYPE_CHECKING:
     from bs4.element import Tag
 
     from star_discovery.logging import Logger
-    from star_discovery.recovery.nodes.attr_key_basic import AttrKeyBasicNode
+    from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
 
 
-class AttrValueBasicNode(BaseNode):
+class AttrValueNode(BaseNode):
     SEGMENT_PREFIX: ClassVar[str] = "attr-value"
+    _parent: AttrKeyBaseNode
 
-    _attr_name: str
-
-    def __init__(self, parent: AttrKeyBasicNode, attr_value: str):
+    def __init__(self, parent: AttrKeyBaseNode, attr_value: str):
         self._attr_name = parent._value
         self._value = attr_value
         super().__init__(parent)
@@ -29,18 +30,29 @@ class AttrValueBasicNode(BaseNode):
     @override
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
         if self.is_frontier() and inc_hidden:
-            attr_value = unrecovered_attr_value(self._value)
-            item[self._attr_name] = attr_value
+            unrecovered_value = unrecovered_attr_value(self._value)
+            if self.is_single_value_attr():
+                item[self._attr_name] = unrecovered_value
+            elif self._attr_name in item:
+                attr_list = item[self._attr_name]
+                assert isinstance(attr_list, AttributeValueList)
+                attr_list.append(unrecovered_value)
+            else:
+                item[self._attr_name] = AttributeValueList((unrecovered_value,))
             return True
-        if self._is_recovered:
-            attr_value = self._value
-            item[self._attr_name] = attr_value
-            return True
-        return False
 
-    @override
-    def as_attr_value_basic_node(self) -> AttrValueBasicNode | None:
-        return self
+        if self._is_recovered:
+            if self.is_single_value_attr():
+                item[self._attr_name] = self._value
+            elif self._attr_name in item:
+                attr_list = item[self._attr_name]
+                assert isinstance(attr_list, AttributeValueList)
+                attr_list.append(self._value)
+            else:
+                item[self._attr_name] = AttributeValueList((self._value,))
+            return True
+
+        return False
 
     @override
     def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
@@ -54,3 +66,6 @@ class AttrValueBasicNode(BaseNode):
     @override
     def source_summary(self) -> SubtreeSummary:
         return SubtreeSummary.with_attr_value(self._value)
+
+    def is_single_value_attr(self) -> bool:
+        return self._parent.is_single_value_attr()

@@ -141,7 +141,7 @@ class Database:
                 f"Round {self._round} end: "
                 f"Recovered nodes: {prev_state.recovered} -> {curr_state.recovered}, "
                 f"Frontier nodes: {prev_state.frontier} -> {curr_state.frontier}, "
-                f"Recovered keys:{prev_state.keys} -> {curr_state.keys}"
+                f"Recovered keys: {prev_state.keys} -> {curr_state.keys}"
             )
 
     def documents(self) -> list[Document]:

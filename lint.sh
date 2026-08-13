@@ -3,6 +3,6 @@ set -euo pipefail
 IFS=$'\n\t'
 
 
-black --diff --color src/ || echo "";
-pylint --rcfile ./pylintrc src/ || echo "";
-mypy --config-file pyproject.toml src/ || echo "";
+black --diff --color src/ tests/ || echo "";
+pylint --rcfile ./pylintrc src/ tests/ || echo "";
+mypy --config-file pyproject.toml src/ tests/ || echo "";

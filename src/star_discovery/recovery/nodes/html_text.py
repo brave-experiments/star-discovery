@@ -47,10 +47,6 @@ class HTMLTextNode(HTMLBaseNode):
         return False
 
     @override
-    def as_html_text_node(self) -> HTMLTextNode | None:
-        return self
-
-    @override
     def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
         if not (count := super().summary_for_recovered_doc(logger)):
             return None

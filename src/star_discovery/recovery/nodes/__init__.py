@@ -6,7 +6,6 @@
       - HTMLElementBodyNode
     - HTMLTextNode
   - AttrKeyBaseNode (abstract)
-    - AttrKeyBasicNode
-    - AttrKeyHTMLClassNode
-  - AttrValueBasicNode
-  - AttrValueHTMLClassNode"""
+    - AttrKeySingleNode
+    - AttrKeyMultiNode
+  - AttrValueNode"""

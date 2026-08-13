@@ -12,15 +12,10 @@ if TYPE_CHECKING:
 
     from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
-    from star_discovery.recovery.nodes.abc.attr_key_base import (
-        AttrKeyBaseNode,
-    )
-    from star_discovery.recovery.nodes.attr_key_basic import AttrKeyBasicNode
-    from star_discovery.recovery.nodes.attr_key_html_class import AttrKeyHTMLClassNode
-    from star_discovery.recovery.nodes.attr_value_basic import AttrValueBasicNode
-    from star_discovery.recovery.nodes.attr_value_html_class import (
-        AttrValueHTMLClassNode,
-    )
+    from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
+    from star_discovery.recovery.nodes.attr_value import AttrValueNode
+    from star_discovery.recovery.nodes.attr_key_multi import AttrKeyMultiNode
+    from star_discovery.recovery.nodes.attr_key_single import AttrKeySingleNode
     from star_discovery.recovery.nodes.html_element_body import (
         HTMLElementBaseNode,
         HTMLElementBodyNode,
@@ -89,19 +84,13 @@ class BaseNode(ABC):
     def as_html_elm_node(self) -> HTMLElementRootNode | HTMLElementBodyNode | None:
         return self.as_html_elm_root_node() or self.as_html_elm_body_node()
 
-    def as_html_text_node(self) -> HTMLTextNode | None:
+    def as_attr_key_node(self) -> AttrKeyBaseNode | None:
         return None
 
-    def as_attr_key_basic_node(self) -> AttrKeyBasicNode | None:
+    def as_attr_key_multi_node(self) -> AttrKeyMultiNode | None:
         return None
 
-    def as_attr_key_html_class_node(self) -> AttrKeyHTMLClassNode | None:
-        return None
-
-    def as_attr_value_basic_node(self) -> AttrValueBasicNode | None:
-        return None
-
-    def as_attr_value_html_class_node(self) -> AttrValueHTMLClassNode | None:
+    def as_attr_key_single_node(self) -> AttrKeySingleNode | None:
         return None
 
     # pylint: disable-next=unused-argument

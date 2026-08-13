@@ -16,6 +16,8 @@ click==8.4.2
     # via black
 dill==0.4.1
     # via pylint
+iniconfig==2.3.0
+    # via pytest
 isort==8.0.1
     # via pylint
 librt==0.12.0
@@ -31,6 +33,7 @@ mypy-extensions==1.1.0
 packaging==26.2
     # via
     #   black
+    #   pytest
     #   star-discovery (pyproject.toml)
 pathspec==1.1.1
     # via
@@ -40,7 +43,13 @@ platformdirs==4.10.0
     # via
     #   black
     #   pylint
+pluggy==1.6.0
+    # via pytest
+pygments==2.20.0
+    # via pytest
 pylint==4.0.6
+    # via star-discovery (pyproject.toml)
+pytest==9.1.1
     # via star-discovery (pyproject.toml)
 pytokens==0.4.1
     # via black

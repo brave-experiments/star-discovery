@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import ClassVar, override, TYPE_CHECKING
+from typing import override, TYPE_CHECKING
 
 from star_discovery.bs_helpers import unrecovered_attr_name
 from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
-from star_discovery.recovery.nodes.attr_value_basic import AttrValueBasicNode
+from star_discovery.recovery.nodes.attr_value import AttrValueNode
 from star_discovery.summaries import SubtreeSummary
 
 if TYPE_CHECKING:
@@ -16,23 +16,23 @@ if TYPE_CHECKING:
     from star_discovery.summaries import RevealResult
 
 
-class AttrKeyBasicNode(AttrKeyBaseNode):
-    SEGMENT_PREFIX: ClassVar[str] = "attr-name"
+class AttrKeySingleNode(AttrKeyBaseNode):
 
     _attr_value: str
-    """Note that this is not the value of this node (that is still the `value`
-    attribute in the Node base class. This is instead the corresponding
-    value for this attribute, and is just held here to make pushing it
-    into the child AttrValueNode node easier (if this node is recovered)."""
-
-    _attr_value_node: AttrValueBasicNode | None
+    _attr_value_node: AttrValueNode | None
 
     def __init__(self, parent: HTMLElementBaseNode, attr_key: str, attr_value: str):
         self._attr_value = attr_value
+        self._attr_value_node = None
         super().__init__(parent, attr_key)
 
-    def __str__(self) -> str:
-        return f"[attr: {self._value}=]"
+    @override
+    def as_attr_key_single_node(self) -> AttrKeySingleNode | None:
+        return self
+
+    @override
+    def is_single_value_attr(self) -> bool:
+        return True
 
     @override
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
@@ -40,6 +40,7 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
             attr_name = unrecovered_attr_name(self._value)
             item[attr_name] = self._attr_value
             return True
+
         if self._is_recovered:
             item[self._value] = ""
             if self._attr_value_node:
@@ -53,30 +54,26 @@ class AttrKeyBasicNode(AttrKeyBaseNode):
         if not success:
             return result
 
-        self._attr_value_node = AttrValueBasicNode(self, self._attr_value)
-        child_node_result = self._attr_value_node.reveal(keys)
-        result.merge_in(child_node_result)
+        self._attr_value_node = AttrValueNode(self, self._attr_value)
+        child_result = self._attr_value_node.reveal(keys)
+        result.merge_in(child_result)
         return result
 
     @override
-    def as_attr_key_basic_node(self) -> AttrKeyBasicNode | None:
-        return self
-
-    @override
     def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
-        if not (count := super().summary_for_recovered_doc(logger)):
+        if not (summary := super().summary_for_recovered_doc(logger)):
             return None
         if logger:
-            logger.debug(f"adding attr to SubtreeSummary: {self._value}")
-        count.add_attr_name(self._value)
+            logger.debug(f"adding attr-name to SubtreeSummary: {self._value}")
+        summary.add_attr_name(self._value)
+
         if self._attr_value_node:
-            if value_count := self._attr_value_node.summary_for_recovered_doc(logger):
-                count += value_count
-        return count
+            if child_summary := self._attr_value_node.summary_for_recovered_doc(logger):
+                summary += child_summary
+        return summary
 
     @override
     def source_summary(self) -> SubtreeSummary:
-        summary = SubtreeSummary()
-        summary.add_attr_name(self._value)
+        summary = SubtreeSummary.with_attr_name(self._value)
         summary.add_attr_value(self._attr_value)
         return summary

@@ -60,13 +60,11 @@ class SubtreeSummary:
     _text_nodes_key: ClassVar[str] = "text_nodes"
     _attr_names_key: ClassVar[str] = "attr_names"
     _attr_values_key: ClassVar[str] = "attr_values"
-    _html_classes_key: ClassVar[str] = "html_classes"
 
     html_nodes: dict[str, int] = field(default_factory=dict)
     text_nodes: dict[str, int] = field(default_factory=dict)
     attr_names: dict[str, int] = field(default_factory=dict)
     attr_values: dict[str, int] = field(default_factory=dict)
-    html_classes: dict[str, int] = field(default_factory=dict)
     _cache: dict[str, int | None] = field(
         default_factory=dict, init=False, compare=False
     )
@@ -93,12 +91,6 @@ class SubtreeSummary:
     def with_attr_value(item: str) -> SubtreeSummary:
         summary = SubtreeSummary()
         summary.add_attr_value(item)
-        return summary
-
-    @staticmethod
-    def with_html_class(item: str) -> SubtreeSummary:
-        summary = SubtreeSummary()
-        summary.add_html_class(item)
         return summary
 
     @staticmethod
@@ -130,7 +122,6 @@ class SubtreeSummary:
             SubtreeSummary._text_nodes_key: None,
             SubtreeSummary._attr_names_key: None,
             SubtreeSummary._attr_values_key: None,
-            SubtreeSummary._html_classes_key: None,
         }
 
     def __hash__(self) -> int:
@@ -140,7 +131,6 @@ class SubtreeSummary:
                 self.text_nodes,
                 self.attr_names,
                 self.attr_values,
-                self.html_classes,
             )
         )
 
@@ -152,7 +142,6 @@ class SubtreeSummary:
             and self.text_nodes == other.text_nodes
             and self.attr_names == other.attr_names
             and self.attr_values == other.attr_values
-            and self.html_classes == other.html_classes
         )
 
     def __add__(self, other: Any) -> SubtreeSummary:
@@ -163,7 +152,6 @@ class SubtreeSummary:
             SubtreeSummary.merge_dicts(self.text_nodes, other.text_nodes),
             SubtreeSummary.merge_dicts(self.attr_names, other.attr_names),
             SubtreeSummary.merge_dicts(self.attr_values, other.attr_values),
-            SubtreeSummary.merge_dicts(self.html_classes, other.html_classes),
         )
 
     def to_jsonable(self) -> dict[str, dict[str, int]]:
@@ -172,7 +160,6 @@ class SubtreeSummary:
             "text_nodes": self.text_nodes,
             "attr_names": self.attr_names,
             "attr_values": self.attr_values,
-            "html_classes": self.html_classes,
         }
 
     def total(self) -> int:
@@ -181,7 +168,6 @@ class SubtreeSummary:
             + self.text_node_count()
             + self.attr_name_count()
             + self.attr_value_count()
-            + self.html_class_count()
         )
 
     def add_html_node(self, tag_name: str) -> int:
@@ -226,15 +212,4 @@ class SubtreeSummary:
             return cached_value
         value = SubtreeSummary.sum_dict(self.attr_values)
         self._cache[SubtreeSummary._attr_values_key] = value
-        return value
-
-    def add_html_class(self, html_class: str) -> int:
-        self._cache[SubtreeSummary._html_classes_key] = None
-        return SubtreeSummary.inc_key(self.html_classes, html_class)
-
-    def html_class_count(self) -> int:
-        if (cached_value := self._cache[SubtreeSummary._html_classes_key]) is not None:
-            return cached_value
-        value = SubtreeSummary.sum_dict(self.html_classes)
-        self._cache[SubtreeSummary._html_classes_key] = value
         return value

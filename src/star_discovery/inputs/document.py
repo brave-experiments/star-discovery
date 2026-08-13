@@ -33,9 +33,6 @@ class RecoverySummary:
     def attr_value_recovery_pct(self) -> float:
         return self.recovered.attr_value_count() / float(self.source.attr_value_count())
 
-    def html_class_recovery_pct(self) -> float:
-        return self.recovered.html_class_count() / float(self.source.html_class_count())
-
 
 class Document:
     path: Path

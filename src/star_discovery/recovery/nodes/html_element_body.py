@@ -3,24 +3,20 @@ from __future__ import annotations
 from abc import ABC
 from typing import ClassVar, override, TYPE_CHECKING
 
-from bs4.element import Comment, NavigableString, Tag
+from bs4.element import AttributeValueList, Comment, NavigableString, Tag
 
 from star_discovery.bs_helpers import tag_name, unexpected_elm_error
+from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
 from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
-from star_discovery.recovery.nodes.attr_key_basic import AttrKeyBasicNode
-from star_discovery.recovery.nodes.attr_key_html_class import AttrKeyHTMLClassNode
+from star_discovery.recovery.nodes.attr_key_multi import AttrKeyMultiNode
+from star_discovery.recovery.nodes.attr_key_single import AttrKeySingleNode
 from star_discovery.recovery.nodes.html_text import HTMLTextNode
 from star_discovery.summaries import SubtreeSummary, RevealResult
 
 if TYPE_CHECKING:
-    from bs4.element import AttributeValueList
-
     from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
-
-
-HTML_CLASS_ATTR_NAME = "class"
 
 
 class HTMLElementBaseNode(HTMLBaseNode, ABC):
@@ -28,8 +24,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
 
     _elm: Tag
     _child_nodes: list[HTMLElementBodyNode | HTMLTextNode]
-    _basic_attrs: dict[str, AttrKeyBasicNode]
-    _html_class_attr: AttrKeyHTMLClassNode | None = None
+    _attrs: dict[str, AttrKeyBaseNode]
 
     _index: int
     """The index of the this HTML element, amongst its peer elements,
@@ -39,15 +34,15 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
     @classmethod
     def summary_for_source_item(cls, item: Tag) -> SubtreeSummary:
         summary = SubtreeSummary.with_html_node(tag_name(item))
-        for attr_name, attr_value in item.attrs.items():
+        for attr_name, val in item.attrs.items():
             summary.add_attr_name(attr_name)
-            if attr_name == HTML_CLASS_ATTR_NAME:
-                assert not isinstance(attr_value, str)
-                for a_html_class in attr_value:
-                    summary.add_html_class(a_html_class)
+            if isinstance(val, AttributeValueList):
+                for attr_value in val:
+                    summary.add_attr_value(attr_value)
+            elif isinstance(val, str):
+                summary.add_attr_value(val)
             else:
-                assert isinstance(attr_value, str)
-                summary.add_attr_value(attr_value)
+                assert ValueError(f"Unknown value type: {val}")
 
         for child in item.children:
             if isinstance(child, Tag):
@@ -66,7 +61,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         assert parent or not elm._parent
         self._value = tag_name(elm)
         self._child_nodes = []
-        self._basic_attrs = {}
+        self._attrs = {}
         super().__init__(parent, elm, index)
 
     def __str__(self) -> str:
@@ -84,11 +79,8 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
             tag = Tag(name=self._elm.name, namespace=self._elm.namespace)
             item.append(tag)
 
-            for child_attr_node in self._basic_attrs.values():
+            for child_attr_node in self._attrs.values():
                 child_attr_node.add_to_html(tag, inc_hidden)
-
-            if self._html_class_attr:
-                self._html_class_attr.add_to_html(tag, inc_hidden)
 
             for child_node in self._child_nodes:
                 child_node.add_to_html(tag, inc_hidden)
@@ -106,28 +98,24 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         # a bunch of new leaf nodes to track, namely a. for each of the
         # just-recovered node's attributes, and b. the just recovered
         # node's child text and child html elements.
-        for attr_name, attr_value in self._elm.attrs.items():
-            if attr_name == HTML_CLASS_ATTR_NAME:
-                assert not isinstance(attr_value, str)
-                child_result = self._reveal_attr_key_html_class_node(keys, attr_value)
+        for attr_name, val in self._elm.attrs.items():
+            if isinstance(val, AttributeValueList):
+                child_result = self._reveal_attr_key(keys, attr_name, val)
                 result.merge_in(child_result)
-                continue
-            assert isinstance(attr_value, str)
-            child_result = self._reveal_attr_key_basic_node(keys, attr_name, attr_value)
-            result.merge_in(child_result)
+            elif isinstance(val, str):
+                child_result = self._reveal_attr_key(keys, attr_name, val)
+                result.merge_in(child_result)
 
         index = -1
         for child in self._elm.children:
             if isinstance(child, Tag):
                 index += 1
-                child_result = self._reveal_html_elm_body_node(keys, child, index)
+                child_result = self._reveal_html_elm_body(keys, child, index)
                 result.merge_in(child_result)
             elif isinstance(child, NavigableString):
                 if trimmed_text := HTMLTextNode.is_relevant_text(child):
                     index += 1
-                    child_result = self._reveal_html_text_node(
-                        keys, trimmed_text, index
-                    )
+                    child_result = self._reveal_html_text(keys, trimmed_text, index)
                     result.merge_in(child_result)
             else:
                 raise unexpected_elm_error(child)
@@ -143,12 +131,9 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         for child in self._child_nodes:
             if child_count := child.summary_for_recovered_doc(logger):
                 count += child_count
-        for basic_attr in self._basic_attrs.values():
-            if attr_count := basic_attr.summary_for_recovered_doc(logger):
+        for attr_key_node in self._attrs.values():
+            if attr_count := attr_key_node.summary_for_recovered_doc(logger):
                 count += attr_count
-        if self._html_class_attr:
-            if class_count := self._html_class_attr.summary_for_recovered_doc(logger):
-                count += class_count
         return count
 
     @override
@@ -158,34 +143,22 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
     def tag(self) -> str:
         return f"<{tag_name(self._elm)}>"
 
-    def _reveal_attr_key_html_class_node(
-        self, keys: KeyCollection, html_classes: AttributeValueList
+    def _reveal_attr_key(
+        self, keys: KeyCollection, attr_key: str, attr_value: AttributeValueList | str
     ) -> RevealResult:
-        # We should never see more than one HTML class attribute
-        # on a HTML element.
-        assert not self._html_class_attr
+        html_node = self.as_html_elm_node()
+        assert html_node
 
-        html_instance_node = self.as_html_elm_node()
-        assert html_instance_node
+        if isinstance(attr_value, AttributeValueList):
+            attr_multi_key_node = AttrKeyMultiNode(html_node, attr_key, attr_value)
+            self._attrs[attr_key] = attr_multi_key_node
+            return attr_multi_key_node.reveal(keys)
 
-        html_class_node = AttrKeyHTMLClassNode(html_instance_node, html_classes)
-        child_reveal_result = html_class_node.reveal(keys)
-        self._html_class_attr = html_class_node
-        return child_reveal_result
+        attr_single_key_node = AttrKeySingleNode(html_node, attr_key, attr_value)
+        self._attrs[attr_key] = attr_single_key_node
+        return attr_single_key_node.reveal(keys)
 
-    def _reveal_attr_key_basic_node(
-        self, keys: KeyCollection, attr_name: str, attr_value: str
-    ) -> RevealResult:
-        assert isinstance(attr_value, str)
-
-        html_instance_node = self.as_html_elm_node()
-        assert html_instance_node
-
-        new_attr_node = AttrKeyBasicNode(html_instance_node, attr_name, attr_value)
-        self._basic_attrs[attr_name] = new_attr_node
-        return new_attr_node.reveal(keys)
-
-    def _reveal_html_elm_body_node(
+    def _reveal_html_elm_body(
         self, keys: KeyCollection, elm: Tag, index: int
     ) -> RevealResult:
         html_instance_node = self.as_html_elm_node()
@@ -195,7 +168,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         self._child_nodes.append(child_html_elm)
         return child_html_elm.reveal(keys)
 
-    def _reveal_html_text_node(
+    def _reveal_html_text(
         self, keys: KeyCollection, text: NavigableString, index: int
     ) -> RevealResult:
         html_instance_node = self.as_html_elm_node()
