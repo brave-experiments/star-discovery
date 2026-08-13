@@ -29,5 +29,9 @@ where = ['src']
 [project.scripts]
 star-discovery = "star_discovery.cli.parser:run"
 
-[tool.coverage.run]
-branch = true
+[tool.pytest]
+minversion = "9.0"
+addopts = ["-ra", "-q"]
+testpaths = [
+    "tests",
+]
