@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from math import inf
 from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
@@ -22,16 +23,36 @@ class RecoverySummary:
     source: SubtreeSummary
 
     def html_node_recovery_pct(self) -> float:
-        return self.recovered.html_node_count() / float(self.source.html_node_count())
+        try:
+            return self.recovered.html_node_count() / float(
+                self.source.html_node_count()
+            )
+        except ZeroDivisionError:
+            return inf
 
     def text_node_recovery_pct(self) -> float:
-        return self.recovered.text_node_count() / float(self.source.text_node_count())
+        try:
+            return self.recovered.text_node_count() / float(
+                self.source.text_node_count()
+            )
+        except ZeroDivisionError:
+            return inf
 
     def attr_name_recovery_pct(self) -> float:
-        return self.recovered.attr_name_count() / float(self.source.attr_name_count())
+        try:
+            return self.recovered.attr_name_count() / float(
+                self.source.attr_name_count()
+            )
+        except ZeroDivisionError:
+            return inf
 
     def attr_value_recovery_pct(self) -> float:
-        return self.recovered.attr_value_count() / float(self.source.attr_value_count())
+        try:
+            return self.recovered.attr_value_count() / float(
+                self.source.attr_value_count()
+            )
+        except ZeroDivisionError:
+            return inf
 
 
 class Document:
@@ -82,5 +103,5 @@ class Document:
         total_pct = self.recovered_summary().total() / self.source_summary().total()
         return round(total_pct, 2)
 
-    def validate(self) -> bool:
-        return self._recovery_doc.validate()
+    def validate(self, logger: Logger | None) -> bool:
+        return self._recovery_doc.validate(logger)

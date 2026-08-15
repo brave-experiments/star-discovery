@@ -22,7 +22,7 @@ class HTMLBaseNode(BaseNode, ABC):
     """The location of this page element (HTML element, text node)
     amongst its peers within its parent node."""
 
-    _elm: NavigableString | Tag
+    _elm: NavigableString | Tag | None
 
     def __init__(
         self,

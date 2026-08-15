@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import ClassVar, override, TYPE_CHECKING
+from typing import override, TYPE_CHECKING
 
 from bs4.element import AttributeValueList, Comment, NavigableString, Tag
 
@@ -14,21 +14,40 @@ from star_discovery.recovery.nodes.html_text import HTMLTextNode
 from star_discovery.summaries import SubtreeSummary, RevealResult
 
 if TYPE_CHECKING:
+    from typing import Any, ClassVar
+
+    from bs4 import BeautifulSoup
+
     from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
-    from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
+    from star_discovery.recovery.nodes.html_element_root import (
+        ElmId,
+        HTMLElementRootNode,
+    )
 
 
 class HTMLElementBaseNode(HTMLBaseNode, ABC):
     SEGMENT_PREFIX: ClassVar[str] = "html"
 
-    _elm: Tag
+    # These values are None-able because they're not stored during pickling;
+    # they're None'ed out, and then dynamically recalculated the first time
+    # they're needed after being unpickled.
+    _root_node: HTMLElementRootNode | None = None
+    _elm: Tag | None = None
+
+    _elm_index: ElmId
+    """The index of this element in the entire HTML document. Used to
+    be able to recover the underlying BeautifulSoup Tag instance, without
+    needing to hold a reference to it when pickling."""
+
     _child_nodes: list[HTMLElementBodyNode | HTMLTextNode]
     _attrs: dict[str, AttrKeyBaseNode]
 
     _index: int
     """The index of the this HTML element, amongst its peer elements,
     within the parent element."""
+
+    _parent: HTMLElementBaseNode | None
 
     @override
     @classmethod
@@ -48,8 +67,8 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
             if isinstance(child, Tag):
                 summary += HTMLElementBodyNode.summary_for_source_item(child)
             elif isinstance(child, NavigableString):
-                if trim_text := HTMLTextNode.is_relevant_text(child):
-                    summary.add_text_node(trim_text)
+                if trimmed_text := HTMLTextNode.relevant_text(child):
+                    summary.add_text_node(trimmed_text)
             else:
                 raise unexpected_elm_error(child)
         return summary
@@ -63,20 +82,48 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         self._child_nodes = []
         self._attrs = {}
         super().__init__(parent, elm, index)
+        self._elm_index = self.get_root_node().index_for_elm(elm)
 
     def __str__(self) -> str:
         return f"[elm: {self.tag()}]"
 
+    def __getstate__(self) -> dict[str, Any]:
+        state = self.__dict__.copy()
+        del state["_elm"]
+        del state["_root_node"]
+        return state
+
+    def get_root_node(self) -> HTMLElementRootNode:
+        if self._root_node:
+            return self._root_node
+        # This assertion is safe because the only case where this will
+        # fail (i.e., the only kind of node that does not have a parent)
+        # is in the root node, and we override this method in
+        # the HTMLElementRootNode class.
+        assert self._parent
+        self._root_node = self._parent.get_root_node()
+        return self._root_node
+
+    def get_elm(self) -> Tag:
+        if self._elm:
+            return self._elm
+        elm = self.get_root_node().elm_for_index(self._elm_index)
+        assert elm is not None
+        self._elm = elm
+        return self._elm
+
     @override
     def add_to_html(self, item: Tag, inc_hidden: bool = False) -> bool:
+        elm = self.get_elm()
+
         if self.is_frontier() and inc_hidden:
-            child_html = self._elm.prettify()
+            child_html = elm.prettify()
             comment = Comment(child_html)
             item.append(comment)
             return True
 
         if self.is_recovered():
-            tag = Tag(name=self._elm.name, namespace=self._elm.namespace)
+            tag = Tag(name=elm.name, namespace=elm.namespace)
             item.append(tag)
 
             for child_attr_node in self._attrs.values():
@@ -94,11 +141,13 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         if not success:
             return result
 
+        elm = self.get_elm()
+
         # Since we've recovered a HTML element node, we potentially have
         # a bunch of new leaf nodes to track, namely a. for each of the
         # just-recovered node's attributes, and b. the just recovered
         # node's child text and child html elements.
-        for attr_name, val in self._elm.attrs.items():
+        for attr_name, val in elm.attrs.items():
             if isinstance(val, AttributeValueList):
                 child_result = self._reveal_attr_key(keys, attr_name, val)
                 result.merge_in(child_result)
@@ -107,15 +156,15 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
                 result.merge_in(child_result)
 
         index = -1
-        for child in self._elm.children:
+        for child in elm.children:
             if isinstance(child, Tag):
                 index += 1
                 child_result = self._reveal_html_elm_body(keys, child, index)
                 result.merge_in(child_result)
             elif isinstance(child, NavigableString):
-                if trimmed_text := HTMLTextNode.is_relevant_text(child):
+                if HTMLTextNode.relevant_text(child):
                     index += 1
-                    child_result = self._reveal_html_text(keys, trimmed_text, index)
+                    child_result = self._reveal_html_text(keys, child, index)
                     result.merge_in(child_result)
             else:
                 raise unexpected_elm_error(child)
@@ -125,9 +174,10 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
     def summary_for_recovered_doc(self, logger: Logger | None) -> SubtreeSummary | None:
         if not (count := super().summary_for_recovered_doc(logger)):
             return None
+        elm = self.get_elm()
         if logger:
-            logger.debug(f"adding html node to SubtreeSummary: {tag_name(self._elm)}")
-        count.add_html_node(tag_name(self._elm))
+            logger.debug(f"adding html node to SubtreeSummary: {tag_name(elm)}")
+        count.add_html_node(tag_name(elm))
         for child in self._child_nodes:
             if child_count := child.summary_for_recovered_doc(logger):
                 count += child_count
@@ -138,10 +188,10 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
 
     @override
     def source_summary(self) -> SubtreeSummary:
-        return HTMLElementBaseNode.summary_for_source_item(self._elm)
+        return HTMLElementBaseNode.summary_for_source_item(self.get_elm())
 
     def tag(self) -> str:
-        return f"<{tag_name(self._elm)}>"
+        return f"<{tag_name(self.get_elm())}>"
 
     def _reveal_attr_key(
         self, keys: KeyCollection, attr_key: str, attr_value: AttributeValueList | str

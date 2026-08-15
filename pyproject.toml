@@ -3,7 +3,7 @@ name = "star-discovery"
 authors = [{name = "Peter Snyder", email = "pes@brave.com"}]
 license = "MIT"
 readme = "README.md"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
     "beautifulsoup4==4.15.0",
     "packaging==26.2",
@@ -33,5 +33,5 @@ star-discovery = "star_discovery.cli.parser:run"
 minversion = "9.0"
 addopts = ["-ra", "-q"]
 testpaths = [
-    "tests",
+    "tests/cases/*.py",
 ]

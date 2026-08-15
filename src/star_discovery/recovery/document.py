@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 
-from star_discovery.summaries import SubtreeSummary, RevealResult
+from star_discovery.summaries import compare_summaries, RevealResult, SubtreeSummary
 from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
 
 if TYPE_CHECKING:
@@ -84,7 +84,7 @@ class Document:
     def source_summary(self) -> SubtreeSummary:
         return self._root_node.source_summary()
 
-    def validate(self) -> bool:
+    def validate(self, logger: Logger | None = None) -> bool:
         """Perform a number of internal consistency checks that are too
         expensive to check in normal use."""
 
@@ -95,11 +95,23 @@ class Document:
         hidden_nodes = SubtreeSummary()
         for frontier_node in self._frontier_nodes:
             hidden_nodes += frontier_node.source_summary()
-        assert source_nodes == (revealed_nodes + hidden_nodes)
-        return True
+        input_nodes = revealed_nodes + hidden_nodes
+        if source_nodes == input_nodes:
+            return True
+
+        if differences := compare_summaries(source_nodes, revealed_nodes, hidden_nodes):
+            for category, a_diff in differences:
+                msg = (
+                    f"Missing node(s): category={category}, value='{(a_diff.key)[:25]}', "
+                    f"source={a_diff.source} {a_diff.comparison} "
+                    f"revealed={a_diff.revealed} + hidden={a_diff.hidden}"
+                )
+                if not logger:
+                    raise ValueError(msg)
+                logger.error(msg)
+            raise ValueError("Recovery document validation failed.")
+        return False
 
 
 def create(desc: str, html_doc: BeautifulSoup) -> Document:
-    root_tag = html_doc.find("html", recursive=False)
-    assert root_tag is not None
-    return Document(desc, HTMLElementRootNode(root_tag))
+    return Document(desc, HTMLElementRootNode(html_doc))

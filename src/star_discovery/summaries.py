@@ -4,10 +4,14 @@ changes and results."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Any, Final, Literal
     from star_discovery.recovery.nodes.abc.base import BaseNode
+
+
+type NodeTrackingDict = dict[str, int]
 
 
 def desc_some_nodes(nodes: set[BaseNode], num_items: int) -> str:
@@ -54,17 +58,113 @@ class RevealResult:
         self.frontier |= other.frontier
 
 
+type DictKey = str
+
+
+@dataclass
+class DictDifference:
+    key: DictKey
+    source: int
+    comparison: Literal[">" | "<"]
+    revealed: int
+    hidden: int
+    total: int = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.total = abs(self.source - (self.revealed + self.hidden))
+        if self.total == 0:
+            raise ValueError(
+                f"Values do not depict a difference. source={self.source} == "
+                f"(revealed={self.revealed} + hidden={self.hidden})"
+            )
+
+
+def diff_keys_in_dict(dict1: NodeTrackingDict, dict2: NodeTrackingDict) -> list[str]:
+    differences: list[str] = []
+    for key, dict1_value in dict1.items():
+        if key not in dict2:
+            differences.append(key)
+            continue
+
+        dict2_value = dict2[key]
+        if dict1_value != dict2_value:
+            differences.append(key)
+            continue
+
+    for key, dict2_value in dict2.items():
+        if key not in dict1:
+            differences.append(key)
+    return differences
+
+
+def describe_diff_for_key(
+    key: DictKey,
+    source: NodeTrackingDict,
+    revealed: NodeTrackingDict,
+    hidden: NodeTrackingDict,
+) -> DictDifference:
+    source_count = source.get(key, 0)
+    revealed_count = revealed.get(key, 0)
+    hidden_count = hidden.get(key, 0)
+    source_is_bigger = source_count > (revealed_count + hidden_count)
+
+    return DictDifference(
+        key,
+        source_count,
+        ">" if source_is_bigger else "<",
+        revealed_count,
+        hidden_count,
+    )
+
+
+def compare_summaries(
+    source: SubtreeSummary,
+    revealed: SubtreeSummary,
+    hidden: SubtreeSummary,
+) -> list[tuple[str, DictDifference]]:
+    all_differences: list[tuple[str, DictDifference]] = []
+    combined = revealed + hidden
+
+    def _get_diffs(summary_key: DictKey) -> list[tuple[str, DictDifference]]:
+        local_diffs: list[tuple[str, DictDifference]] = []
+
+        source_dict = cast(NodeTrackingDict, getattr(source, summary_key))
+        combined_dict = cast(NodeTrackingDict, getattr(combined, summary_key))
+        revealed_dict = cast(NodeTrackingDict, getattr(revealed, summary_key))
+        hidden_dict = cast(NodeTrackingDict, getattr(hidden, summary_key))
+
+        for key_with_diff in diff_keys_in_dict(source_dict, combined_dict):
+            a_diff = describe_diff_for_key(
+                key_with_diff,
+                source_dict,
+                revealed_dict,
+                hidden_dict,
+            )
+            local_diffs.append((summary_key, a_diff))
+
+        return local_diffs
+
+    all_differences += _get_diffs("html_nodes")
+    all_differences += _get_diffs("text_nodes")
+    all_differences += _get_diffs("attr_names")
+    all_differences += _get_diffs("attr_values")
+
+    return all_differences
+
+
+HTML_NODES_KEY: Final[str] = "html_nodes"
+TEXT_NODES_KEY: Final[str] = "text_nodes"
+ATTR_NAMES_KEY: Final[str] = "attr_names"
+ATTR_VALUES_KEY: Final[str] = "attr_values"
+
+
 @dataclass
 class SubtreeSummary:
-    _html_nodes_key: ClassVar[str] = "html_nodes"
-    _text_nodes_key: ClassVar[str] = "text_nodes"
-    _attr_names_key: ClassVar[str] = "attr_names"
-    _attr_values_key: ClassVar[str] = "attr_values"
+    html_nodes: NodeTrackingDict = field(default_factory=dict)
+    text_nodes: NodeTrackingDict = field(default_factory=dict)
+    attr_names: NodeTrackingDict = field(default_factory=dict)
+    attr_values: NodeTrackingDict = field(default_factory=dict)
 
-    html_nodes: dict[str, int] = field(default_factory=dict)
-    text_nodes: dict[str, int] = field(default_factory=dict)
-    attr_names: dict[str, int] = field(default_factory=dict)
-    attr_values: dict[str, int] = field(default_factory=dict)
     _cache: dict[str, int | None] = field(
         default_factory=dict, init=False, compare=False
     )
@@ -94,7 +194,7 @@ class SubtreeSummary:
         return summary
 
     @staticmethod
-    def inc_key(data: dict[str, int], key: str) -> int:
+    def inc_key(data: NodeTrackingDict, key: str) -> int:
         try:
             data[key] += 1
         except KeyError:
@@ -102,8 +202,8 @@ class SubtreeSummary:
         return data[key]
 
     @staticmethod
-    def merge_dicts(*dicts: dict[str, int]) -> dict[str, int]:
-        union_dict: dict[str, int] = {}
+    def merge_dicts(*dicts: NodeTrackingDict) -> NodeTrackingDict:
+        union_dict: NodeTrackingDict = {}
         for a_dict in dicts:
             for key, value in a_dict.items():
                 try:
@@ -113,15 +213,15 @@ class SubtreeSummary:
         return union_dict
 
     @staticmethod
-    def sum_dict(data: dict[str, int]) -> int:
+    def sum_dict(data: NodeTrackingDict) -> int:
         return sum(data.values())
 
     def __post_init__(self) -> None:
         self._cache = {
-            SubtreeSummary._html_nodes_key: None,
-            SubtreeSummary._text_nodes_key: None,
-            SubtreeSummary._attr_names_key: None,
-            SubtreeSummary._attr_values_key: None,
+            HTML_NODES_KEY: None,
+            TEXT_NODES_KEY: None,
+            ATTR_NAMES_KEY: None,
+            ATTR_VALUES_KEY: None,
         }
 
     def __hash__(self) -> int:
@@ -148,13 +248,13 @@ class SubtreeSummary:
         if not isinstance(other, SubtreeSummary):
             raise ValueError(f"object {other} is not a SubtreeSummary instance")
         return SubtreeSummary(
-            SubtreeSummary.merge_dicts(self.html_nodes, other.html_nodes),
-            SubtreeSummary.merge_dicts(self.text_nodes, other.text_nodes),
-            SubtreeSummary.merge_dicts(self.attr_names, other.attr_names),
-            SubtreeSummary.merge_dicts(self.attr_values, other.attr_values),
+            html_nodes=SubtreeSummary.merge_dicts(self.html_nodes, other.html_nodes),
+            text_nodes=SubtreeSummary.merge_dicts(self.text_nodes, other.text_nodes),
+            attr_names=SubtreeSummary.merge_dicts(self.attr_names, other.attr_names),
+            attr_values=SubtreeSummary.merge_dicts(self.attr_values, other.attr_values),
         )
 
-    def to_jsonable(self) -> dict[str, dict[str, int]]:
+    def to_jsonable(self) -> dict[str, NodeTrackingDict]:
         return {
             "html_nodes": self.html_nodes,
             "text_nodes": self.text_nodes,
@@ -171,45 +271,45 @@ class SubtreeSummary:
         )
 
     def add_html_node(self, tag_name: str) -> int:
-        self._cache[SubtreeSummary._html_nodes_key] = None
+        self._cache[HTML_NODES_KEY] = None
         return SubtreeSummary.inc_key(self.html_nodes, tag_name)
 
     def html_node_count(self) -> int:
-        if (cached_value := self._cache[SubtreeSummary._html_nodes_key]) is not None:
+        if (cached_value := self._cache[HTML_NODES_KEY]) is not None:
             return cached_value
         value = SubtreeSummary.sum_dict(self.html_nodes)
-        self._cache[SubtreeSummary._html_nodes_key] = value
+        self._cache[HTML_NODES_KEY] = value
         return value
 
     def add_text_node(self, text: str) -> int:
-        self._cache[SubtreeSummary._text_nodes_key] = None
+        self._cache[TEXT_NODES_KEY] = None
         return SubtreeSummary.inc_key(self.text_nodes, text)
 
     def text_node_count(self) -> int:
-        if (cached_value := self._cache[SubtreeSummary._text_nodes_key]) is not None:
+        if (cached_value := self._cache[TEXT_NODES_KEY]) is not None:
             return cached_value
         value = SubtreeSummary.sum_dict(self.text_nodes)
-        self._cache[SubtreeSummary._text_nodes_key] = value
+        self._cache[TEXT_NODES_KEY] = value
         return value
 
     def add_attr_name(self, attr_name: str) -> int:
-        self._cache[SubtreeSummary._attr_names_key] = None
+        self._cache[ATTR_NAMES_KEY] = None
         return SubtreeSummary.inc_key(self.attr_names, attr_name)
 
     def attr_name_count(self) -> int:
-        if (cached_value := self._cache[SubtreeSummary._attr_names_key]) is not None:
+        if (cached_value := self._cache[ATTR_NAMES_KEY]) is not None:
             return cached_value
         value = SubtreeSummary.sum_dict(self.attr_names)
-        self._cache[SubtreeSummary._attr_names_key] = value
+        self._cache[ATTR_NAMES_KEY] = value
         return value
 
     def add_attr_value(self, attr_value: str) -> int:
-        self._cache[SubtreeSummary._attr_values_key] = None
+        self._cache[ATTR_VALUES_KEY] = None
         return SubtreeSummary.inc_key(self.attr_values, attr_value)
 
     def attr_value_count(self) -> int:
-        if (cached_value := self._cache[SubtreeSummary._attr_values_key]) is not None:
+        if (cached_value := self._cache[ATTR_VALUES_KEY]) is not None:
             return cached_value
         value = SubtreeSummary.sum_dict(self.attr_values)
-        self._cache[SubtreeSummary._attr_values_key] = value
+        self._cache[ATTR_VALUES_KEY] = value
         return value
