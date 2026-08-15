@@ -98,6 +98,7 @@ def validate(args: Namespace) -> ConsumeArgs:
 
 
 def run(args: ConsumeArgs) -> int:
+    is_debug = args.common.debug
     db = args.common.database
     logger = args.common.logger
     logger.debug(f"Running {SUBCOMMAND_NAME} with database: {db}:")

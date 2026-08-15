@@ -7,6 +7,7 @@ from typing import ClassVar, TYPE_CHECKING
 from packaging.version import Version
 
 import star_discovery
+from star_discovery.debug import is_debug
 from star_discovery.key_store import KeyStore
 from star_discovery.inputs.document import Document
 from star_discovery.summaries import RevealResult
@@ -87,7 +88,7 @@ class Database:
             )
             results_per_doc.append((doc, doc_result))
             result.merge_in(doc_result)
-            if __debug__:
+            if is_debug():
                 doc.validate(logger)
         return results_per_doc
 

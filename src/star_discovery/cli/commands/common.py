@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from packaging.version import Version
 
 import star_discovery
+from star_discovery.debug import ARG_NAME, ARG_VALUE
 from star_discovery.inputs.db import Database, create as create_db, load as load_db
 from star_discovery.logging import (
     config as config_logger,
@@ -26,17 +27,28 @@ type DocIndexes = list[int]
 
 @dataclass
 class CommonArgs:
-    db_path: Path
     database: Database
+    db_path: Path
+    debug: bool
     logger: Logger
 
-    def __init__(self, path: Path, db: Database, logger: Logger):
-        self.db_path = path
+    def __init__(self, db: Database, db_path: Path, debug: bool, logger: Logger):
         self.database = db
+        self.db_path = db_path
+        self.debug = debug
         self.logger = logger
 
     def __str__(self) -> str:
         return f"database path: {self.db_path}, logging level: {self.logger.level()}"
+
+
+def add_debug_arg(parser: ArgumentParser) -> None:
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="enable additional asserts and internal correctness checks. Can "
+        f"also be enabled with the {ARG_NAME}={ARG_VALUE} environment variable",
+    )
 
 
 def add_indexes_arg(parser: ArgumentParser) -> None:
@@ -199,18 +211,20 @@ def validate_logging_arg(args: Namespace) -> Logger:
 def add_common_args(parser: ArgumentParser) -> None:
     """Add the database and logging arguments that every command requires."""
     add_db_arg(parser)
+    add_debug_arg(parser)
     add_logging_args(parser)
 
 
 def validate_common_args(
     args: Namespace, can_create_db: bool = True, threshold: int | None = None
 ) -> CommonArgs:
+    is_debug_mode = args.debug
+
     if can_create_db:
         db_path, db_instance = validate_or_create_db_path_arg(args)
     else:
         db_path, db_instance = validate_existing_db_path_arg(args)
-
     validate_db_instance(db_instance, threshold)
 
     logger = validate_logging_arg(args)
-    return CommonArgs(db_path, db_instance, logger)
+    return CommonArgs(db_instance, db_path, is_debug_mode, logger)

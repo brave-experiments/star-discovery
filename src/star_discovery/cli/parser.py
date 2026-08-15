@@ -10,6 +10,7 @@ from star_discovery import __version__
 import star_discovery.cli.commands.html as html_subcommand
 import star_discovery.cli.commands.info as info_subcommand
 import star_discovery.cli.commands.read as read_subcommand
+from star_discovery.debug import set_debug_mode
 
 STDOUT_PATH = Path("-")
 
@@ -36,8 +37,10 @@ def run() -> int:
     parser = make_parser()
     parsed_args = parser.parse_args()
     subcommand_name = parsed_args.subcommand_name
+
     validated_args = parsed_args.validate_func(parsed_args)
-    logger = validated_args.common.logger
+    set_debug_mode(validated_args.common.debug)
+
     subcommand_func: Callable[[Any], int] = parsed_args.run_func
     assert callable(subcommand_func)
     return subcommand_func(validated_args)
