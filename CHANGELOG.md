@@ -1,6 +1,12 @@
 Changelog
 ===
 
+0.2.3
+---
+
+Disable debug checks when running tests.
+
+
 0.2.2
 ---
 

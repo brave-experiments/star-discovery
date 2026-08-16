@@ -7,6 +7,7 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 
+from star_discovery.debug import set_debug_mode
 from star_discovery.logging import config, Logger
 from star_discovery.inputs.db import Database
 
@@ -23,6 +24,8 @@ class TestBase(ABC):
 
     @classmethod
     def setup_class(cls) -> None:
+        # We want tests to run fast, not produce debugging output.
+        set_debug_mode(False)
         db = Database(cls.THRESHOLD)
         for input_path in cls.INPUT_FILES:
             html_data = BeautifulSoup(input_path.read_text(), features="html.parser")
