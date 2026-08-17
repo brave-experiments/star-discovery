@@ -7,7 +7,6 @@ from tempfile import NamedTemporaryFile
 from star_discovery.inputs.db import load as load_db
 
 from .abc.base import TestBase
-from ..paths import ASSET_HTML_DIR
 
 if TYPE_CHECKING:
     from star_discovery.inputs.db import Database
@@ -15,10 +14,10 @@ if TYPE_CHECKING:
 
 class TestLoadClass(TestBase):
 
-    INPUT_FILES: ClassVar[list[Path]] = [
-        ASSET_HTML_DIR / "cnn_com-JP.html",
-        ASSET_HTML_DIR / "cnn_com-UK.html",
-        ASSET_HTML_DIR / "cnn_com-US.html",
+    ASSET_FILES: ClassVar[list[str]] = [
+        "cnn_com-JP.html",
+        "cnn_com-UK.html",
+        "cnn_com-US.html",
     ]
 
     LOADED_DB: ClassVar[Database]

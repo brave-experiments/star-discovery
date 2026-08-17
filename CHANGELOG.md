@@ -6,6 +6,12 @@ Changelog
 
 Disable debug checks when running tests.
 
+Add tests checking that the number of html and (non-whitespace) text nodes
+in the BeautifulSoup document match the number of nodes we track in our
+source-summary methods.
+
+Restructure and simplify structure of test code.
+
 
 0.2.2
 ---

@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, TYPE_CHECKING
+from typing import ClassVar
 
 from .abc.base import TestBase
-from ..paths import ASSET_HTML_DIR
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class TestReadClass(TestBase):
 
-    INPUT_FILES: ClassVar[list[Path]] = [
-        ASSET_HTML_DIR / "basic-1.html",
-        ASSET_HTML_DIR / "basic-2.html",
+    ASSET_FILES: ClassVar[list[str]] = [
+        "basic-1.html",
+        "basic-2.html",
     ]
 
     def test_doc_one_source_nodes(self) -> None:

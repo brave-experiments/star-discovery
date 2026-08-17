@@ -1,18 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import ClassVar, TYPE_CHECKING
+from typing import ClassVar
 
 from .abc.base import TestBase
-from ..paths import ASSET_HTML_DIR
-
-if TYPE_CHECKING:
-    from star_discovery.inputs.db import Database
 
 
 class TestTextClass(TestBase):
 
-    INPUT_FILES: ClassVar[list[Path]] = [ASSET_HTML_DIR / "comment.html"]
+    ASSET_FILES: ClassVar[list[str]] = ["comment.html"]
     NUM_SOURCE_TEXT_NODES: ClassVar[int] = 2
     NUM_RECOVERED_TEXT_NODES: ClassVar[int] = 0
 
