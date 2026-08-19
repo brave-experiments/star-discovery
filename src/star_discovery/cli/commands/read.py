@@ -38,7 +38,7 @@ class ConsumeArgs:
 def add_subcommand(subparser: argparse._SubParsersAction[ArgumentParser]) -> None:
     consume_parser = subparser.add_parser(
         SUBCOMMAND_NAME,
-        help="read input files into a star-discovery database",
+        help="read input HTML files into a star-discovery database",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     consume_parser.set_defaults(

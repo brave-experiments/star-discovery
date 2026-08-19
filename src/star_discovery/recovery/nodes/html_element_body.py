@@ -11,9 +11,10 @@ from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
 from star_discovery.recovery.nodes.attr_key_multi import AttrKeyMultiNode
 from star_discovery.recovery.nodes.attr_key_single import AttrKeySingleNode
 from star_discovery.recovery.nodes.html_text import HTMLTextNode
-from star_discovery.summaries import SubtreeSummary, RevealResult
+from star_discovery.summaries import NodeDepth, NodeType, SubtreeSummary, RevealResult
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from typing import Any, ClassVar
 
     from bs4 import BeautifulSoup
@@ -49,7 +50,6 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
 
     _parent: HTMLElementBaseNode | None
 
-    @override
     @classmethod
     def summary_for_source_item(cls, item: Tag) -> SubtreeSummary:
         summary = SubtreeSummary.with_html_node(tag_name(item))
@@ -73,7 +73,9 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
                 raise unexpected_elm_error(child)
         return summary
 
-    def __init__(self, parent: HTMLElementBaseNode | None, elm: Tag, index: int = 0):
+    def __init__(
+        self, depth: int, parent: HTMLElementBaseNode | None, elm: Tag, index: int = 0
+    ):
         # We should always have a parent recoverable node for an HTML element,
         # unless the node in the HTML document this recoverable node item
         # is tracking does not have a parent (i.e., it is the parent node).
@@ -81,7 +83,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         self._value = tag_name(elm)
         self._child_nodes = []
         self._attrs = {}
-        super().__init__(parent, elm, index)
+        super().__init__(depth, parent, elm, index)
         self._elm_index = self.get_root_node().index_for_elm(elm)
 
     def __str__(self) -> str:
@@ -193,6 +195,26 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
     def tag(self) -> str:
         return f"<{tag_name(self.get_elm())}>"
 
+    @override
+    def max_depth(self) -> int:
+        max_depth = self.depth()
+        for child_node in self._child_nodes:
+            max_depth = max(max_depth, child_node.max_depth())
+
+        for attr_node in self._attrs.values():
+            max_depth = max(max_depth, attr_node.max_depth())
+        return max_depth
+
+    def node_depths(self) -> Generator[NodeDepth]:
+        if not self.is_recovered():
+            return
+        yield NodeDepth(self.depth(), NodeType.HTML)
+        for child_node in self._child_nodes:
+            yield from child_node.node_depths()
+
+        for attr_node in self._attrs.values():
+            yield from attr_node.node_depths()
+
     def _reveal_attr_key(
         self, keys: KeyCollection, attr_key: str, attr_value: AttributeValueList | str
     ) -> RevealResult:
@@ -200,11 +222,15 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         assert html_node
 
         if isinstance(attr_value, AttributeValueList):
-            attr_multi_key_node = AttrKeyMultiNode(html_node, attr_key, attr_value)
+            attr_multi_key_node = AttrKeyMultiNode(
+                self.depth() + 1, html_node, attr_key, attr_value
+            )
             self._attrs[attr_key] = attr_multi_key_node
             return attr_multi_key_node.reveal(keys)
 
-        attr_single_key_node = AttrKeySingleNode(html_node, attr_key, attr_value)
+        attr_single_key_node = AttrKeySingleNode(
+            self.depth() + 1, html_node, attr_key, attr_value
+        )
         self._attrs[attr_key] = attr_single_key_node
         return attr_single_key_node.reveal(keys)
 
@@ -214,7 +240,9 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         html_instance_node = self.as_html_elm_node()
         assert html_instance_node
 
-        child_html_elm = HTMLElementBodyNode(html_instance_node, elm, index)
+        child_html_elm = HTMLElementBodyNode(
+            self.depth() + 1, html_instance_node, elm, index
+        )
         self._child_nodes.append(child_html_elm)
         return child_html_elm.reveal(keys)
 
@@ -224,15 +252,17 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
         html_instance_node = self.as_html_elm_node()
         assert html_instance_node
 
-        child_text_elm = HTMLTextNode(html_instance_node, text, index)
+        child_text_elm = HTMLTextNode(self.depth() + 1, html_instance_node, text, index)
         self._child_nodes.append(child_text_elm)
         return child_text_elm.reveal(keys)
 
 
 class HTMLElementBodyNode(HTMLElementBaseNode):
 
-    def __init__(self, parent: HTMLElementBaseNode, elm: Tag, index: int = 0):
-        super().__init__(parent, elm, index)
+    def __init__(
+        self, depth: int, parent: HTMLElementBaseNode, elm: Tag, index: int = 0
+    ):
+        super().__init__(depth, parent, elm, index)
 
     @override
     def as_html_elm_body_node(self) -> HTMLElementBodyNode | None:

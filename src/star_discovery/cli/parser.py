@@ -40,6 +40,8 @@ def run() -> int:
 
     validated_args = parsed_args.validate_func(parsed_args)
     set_debug_mode(validated_args.common.debug)
+    logger = validated_args.common.logger
+    logger.debug(f"Running {subcommand_name}:")
 
     subcommand_func: Callable[[Any], int] = parsed_args.run_func
     assert callable(subcommand_func)

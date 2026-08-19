@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 
-from star_discovery.summaries import SubtreeSummary, RevealResult
+from star_discovery.summaries import DepthSummary, SubtreeSummary, RevealResult
 from star_discovery.recovery.document import create, Document as RecoveryDocument
 
 if TYPE_CHECKING:
@@ -75,8 +75,19 @@ class Document:
             f"({self.pct_recovered()}%)"
         )
 
+    def depth(self) -> int:
+        """Returns the maximum length from the root node in the HTML document
+        to a leaf node."""
+        return self._recovery_doc.depth()
+
     def summary(self, logger: Logger | None = None) -> RecoverySummary:
         return RecoverySummary(self.recovered_summary(logger), self.source_summary())
+
+    def recovered_depths_summary(self) -> DepthSummary:
+        return self._recovery_doc.recovered_depths_summary()
+
+    def source_depths_summary(self) -> DepthSummary:
+        return self._recovery_doc.source_depths_summary()
 
     def reveal(self, keys: KeyCollection, logger: Logger) -> RevealResult:
         return self._recovery_doc.reveal(keys, logger)

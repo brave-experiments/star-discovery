@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from hashlib import sha256
-from typing import ClassVar, override, TYPE_CHECKING
+from typing import override, TYPE_CHECKING
 
 from bs4.element import Comment, NavigableString
 
-from star_discovery.summaries import SubtreeSummary
+from star_discovery.summaries import NodeDepth, NodeType, SubtreeSummary
 from star_discovery.recovery.nodes.abc.html_base import HTMLBaseNode
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+    from typing import ClassVar
+
     from bs4.element import Tag
 
     from star_discovery.logging import Logger
@@ -31,12 +34,14 @@ class HTMLTextNode(HTMLBaseNode):
     def relevant_text(cls, elm: NavigableString) -> NavigableString | None:
         return trim_navigable_string(elm)
 
-    def __init__(self, parent: HTMLElementBaseNode, elm: NavigableString, index: int):
+    def __init__(
+        self, depth: int, parent: HTMLElementBaseNode, elm: NavigableString, index: int
+    ):
         trimmed_text = trim_navigable_string(elm)
         assert trimmed_text
         text_bytes = trimmed_text.encode("utf8")
         self._value = sha256(text_bytes, usedforsecurity=False).hexdigest()
-        super().__init__(parent, trimmed_text, index)
+        super().__init__(depth, parent, trimmed_text, index)
 
     def __str__(self) -> str:
         return f"[text: '{self.trim()}']"
@@ -67,6 +72,15 @@ class HTMLTextNode(HTMLBaseNode):
         if relevant_text := HTMLTextNode.relevant_text(self._elm):
             summary.add_text_node(relevant_text)
         return summary
+
+    @override
+    def max_depth(self) -> int:
+        return self.depth()
+
+    def node_depths(self) -> Generator[NodeDepth]:
+        if not self.is_recovered():
+            return
+        yield NodeDepth(self.depth(), NodeType.TEXT)
 
     def trim(self, max_length: int = 10) -> str:
         if len(self._elm) <= max_length:

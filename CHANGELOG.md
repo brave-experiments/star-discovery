@@ -1,6 +1,13 @@
 Changelog
 ===
 
+0.2.4
+---
+
+Add `--depth` option for the `info` subcommand, to print information about
+the recovery rates in each document by depth (i.e., the percentage of nodes
+recovered with depth 1, 2, 3, etc.).
+
 0.2.3
 ---
 
@@ -11,7 +18,6 @@ in the BeautifulSoup document match the number of nodes we track in our
 source-summary methods.
 
 Restructure and simplify structure of test code.
-
 
 0.2.2
 ---

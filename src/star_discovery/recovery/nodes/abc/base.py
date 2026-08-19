@@ -39,13 +39,13 @@ class BaseNode(ABC):
     _is_recovered: bool = False
     _parent: HTMLElementBaseNode | AttrKeyBaseNode | None
     _value: str
+    _depth: int | None
 
-    @classmethod
-    def summary_for_source_item(cls, item: Tag) -> SubtreeSummary:
-        raise NotImplementedError("summary_for_source_item", cls)
-
-    def __init__(self, parent: HTMLElementBaseNode | AttrKeyBaseNode | None):
+    def __init__(
+        self, depth: int, parent: HTMLElementBaseNode | AttrKeyBaseNode | None
+    ):
         self._is_recovered = False
+        self._depth = depth
 
         # It should never be the case that we're tracking a recoverable node
         # where that parent hasn't already been recovered.
@@ -68,6 +68,12 @@ class BaseNode(ABC):
 
     def source_summary(self) -> SubtreeSummary:
         raise NotImplementedError("source_summary", self)
+
+    def depth(self) -> int:
+        if self._depth is None:
+            assert self._parent
+            self._depth = self._parent.depth() + 1
+        return self._depth
 
     @cached_property
     def node_tag(self) -> NodeTag:

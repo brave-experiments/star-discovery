@@ -3,15 +3,78 @@ changes and results."""
 
 from __future__ import annotations
 
+from enum import StrEnum
 from dataclasses import dataclass, field
 from typing import cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from typing import Any, Final, Literal
     from star_discovery.recovery.nodes.abc.base import BaseNode
 
 
 type NodeTrackingDict = dict[str, int]
+
+
+class NodeType(StrEnum):
+    HTML = "html"
+    TEXT = "text"
+    NAME = "attr name"
+    VALUE = "attr value"
+
+
+@dataclass
+class NodeDepth:
+    depth: int
+    node_type: NodeType
+
+
+class NodeTypeCount:
+    _data: dict[NodeType, int]
+
+    def __init__(
+        self, html: int = 0, text: int = 0, attr_name: int = 0, attr_value: int = 0
+    ):
+        self._data = {
+            NodeType.HTML: html,
+            NodeType.TEXT: text,
+            NodeType.NAME: attr_name,
+            NodeType.VALUE: attr_value,
+        }
+
+    def __getitem__(self, key: NodeType) -> int:
+        return self._data[key]
+
+    def __add__(self, other: NodeTypeCount) -> NodeTypeCount:
+        return NodeTypeCount(
+            self[NodeType.HTML] + other[NodeType.HTML],
+            self[NodeType.TEXT] + other[NodeType.TEXT],
+            self[NodeType.NAME] + other[NodeType.NAME],
+            self[NodeType.VALUE] + other[NodeType.VALUE],
+        )
+
+    def __iadd__(self, other: NodeTypeCount) -> NodeTypeCount:
+        self._data[NodeType.HTML] += other[NodeType.HTML]
+        self._data[NodeType.TEXT] += other[NodeType.TEXT]
+        self._data[NodeType.NAME] += other[NodeType.NAME]
+        self._data[NodeType.VALUE] += other[NodeType.VALUE]
+        return self
+
+    def inc(self, key: NodeType) -> int:
+        self._data[key] += 1
+        return self._data[key]
+
+    def total(self) -> int:
+        return (
+            self._data[NodeType.HTML]
+            + self._data[NodeType.TEXT]
+            + self._data[NodeType.NAME]
+            + self._data[NodeType.VALUE]
+        )
+
+
+type DepthSummary = list[NodeTypeCount]
 
 
 def desc_some_nodes(nodes: set[BaseNode], num_items: int) -> str:

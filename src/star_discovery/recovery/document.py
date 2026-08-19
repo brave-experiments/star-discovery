@@ -4,13 +4,18 @@ from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 
-from star_discovery.summaries import compare_summaries, RevealResult, SubtreeSummary
+from star_discovery.summaries import (
+    compare_summaries,
+    RevealResult,
+    SubtreeSummary,
+)
 from star_discovery.recovery.nodes.html_element_root import HTMLElementRootNode
 
 if TYPE_CHECKING:
     from star_discovery.key_store import KeyCollection
     from star_discovery.logging import Logger
     from star_discovery.recovery.nodes.abc.base import BaseNode
+    from star_discovery.summaries import DepthSummary
 
 
 class Document:
@@ -44,6 +49,17 @@ class Document:
             f"recovered {self.recovered_summary().total()} "
             f"of {self.source_summary().total()} nodes."
         )
+
+    def depth(self) -> int:
+        """Returns the maximum length from the root node in the HTML document
+        to a leaf node."""
+        return self._root_node.source_depth()
+
+    def source_depths_summary(self) -> DepthSummary:
+        return self._root_node.source_depths_summary()
+
+    def recovered_depths_summary(self) -> DepthSummary:
+        return self._root_node.recovered_depths_summary()
 
     def to_html(self, inc_hidden: bool = False) -> BeautifulSoup:
         doc = BeautifulSoup()

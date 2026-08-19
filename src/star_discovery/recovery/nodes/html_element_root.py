@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, NewType, override, TYPE_CHECKING
+from typing import Any, cast, NewType, override, TYPE_CHECKING
 
 from bs4.element import Tag
 
+from star_discovery.bs_helpers import depth_summary, max_depth
 from star_discovery.recovery.nodes.html_element_body import HTMLElementBaseNode
-from star_discovery.summaries import SubtreeSummary
+from star_discovery.summaries import DepthSummary, NodeTypeCount, SubtreeSummary
 
 if TYPE_CHECKING:
     from bs4 import BeautifulSoup
@@ -35,7 +36,7 @@ class HTMLElementRootNode(HTMLElementBaseNode):
         self._html = html
         elm = html.find("html")
         assert elm is not None
-        super().__init__(None, elm, 0)
+        super().__init__(0, None, elm, 0)
 
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
@@ -80,6 +81,27 @@ class HTMLElementRootNode(HTMLElementBaseNode):
         if not (count := super().summary_for_recovered_doc(logger)):
             return None
         return count
+
+    def source_depth(self) -> int:
+        return max_depth(self._html).depth
+
+    def recovery_depth(self) -> int:
+        return self.max_depth()
+
+    def source_depths_summary(self) -> DepthSummary:
+        return depth_summary(self._html)
+
+    def recovered_depths_summary(self) -> DepthSummary:
+        summary: dict[int, NodeTypeCount] = {}
+        for node_depth in self.node_depths():
+            if node_depth.depth not in summary:
+                summary[node_depth.depth] = NodeTypeCount()
+            summary[node_depth.depth].inc(node_depth.node_type)
+
+        flat_summary: list[NodeTypeCount | None] = list([None] * len(summary))
+        for key, value in summary.items():
+            flat_summary[key] = value
+        return cast(DepthSummary, flat_summary)
 
     def _generate_caches(self) -> None:
         self._tag_to_index_cache = {}

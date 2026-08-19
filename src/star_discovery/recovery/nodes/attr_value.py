@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from typing import ClassVar, override, TYPE_CHECKING
+from typing import override, TYPE_CHECKING
 
 from bs4.element import AttributeValueList
 
 from star_discovery.bs_helpers import unrecovered_attr_value
 from star_discovery.recovery.nodes.abc.base import BaseNode
-from star_discovery.summaries import SubtreeSummary
+from star_discovery.summaries import NodeDepth, NodeType, SubtreeSummary
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+    from typing import ClassVar
+
     from bs4.element import Tag
 
     from star_discovery.logging import Logger
@@ -19,10 +22,10 @@ class AttrValueNode(BaseNode):
     SEGMENT_PREFIX: ClassVar[str] = "attr-value"
     _parent: AttrKeyBaseNode
 
-    def __init__(self, parent: AttrKeyBaseNode, attr_value: str):
+    def __init__(self, depth: int, parent: AttrKeyBaseNode, attr_value: str):
         self._attr_name = parent._value
         self._value = attr_value
-        super().__init__(parent)
+        super().__init__(depth, parent)
 
     def __str__(self) -> str:
         return f"[attr: ={self._value}]"
@@ -69,3 +72,8 @@ class AttrValueNode(BaseNode):
 
     def is_single_value_attr(self) -> bool:
         return self._parent.is_single_value_attr()
+
+    def node_depths(self) -> Generator[NodeDepth]:
+        if not self.is_recovered():
+            return
+        yield NodeDepth(self.depth(), NodeType.VALUE)

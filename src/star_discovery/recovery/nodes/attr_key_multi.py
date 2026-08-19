@@ -7,9 +7,11 @@ from bs4.element import AttributeValueList
 from star_discovery.bs_helpers import unrecovered_attr_name
 from star_discovery.recovery.nodes.abc.attr_key_base import AttrKeyBaseNode
 from star_discovery.recovery.nodes.attr_value import AttrValueNode
-from star_discovery.summaries import SubtreeSummary
+from star_discovery.summaries import NodeDepth, NodeType, SubtreeSummary
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from bs4.element import Tag
 
     from star_discovery.key_store import KeyCollection
@@ -25,13 +27,14 @@ class AttrKeyMultiNode(AttrKeyBaseNode):
 
     def __init__(
         self,
+        depth: int,
         parent: HTMLElementBaseNode,
         attr_key: str,
         attr_values: AttributeValueList,
     ):
         self._attr_values = attr_values
         self._attr_value_nodes = None
-        super().__init__(parent, attr_key)
+        super().__init__(depth, parent, attr_key)
 
     @override
     def as_attr_key_multi_node(self) -> AttrKeyMultiNode | None:
@@ -70,7 +73,7 @@ class AttrKeyMultiNode(AttrKeyBaseNode):
 
         self._attr_value_nodes = []
         for attr_value in self._attr_values:
-            attr_value_node = AttrValueNode(self, attr_value)
+            attr_value_node = AttrValueNode(self.depth() + 1, self, attr_value)
             self._attr_value_nodes.append(attr_value_node)
             child_result = attr_value_node.reveal(keys)
             result.merge_in(child_result)
@@ -96,3 +99,17 @@ class AttrKeyMultiNode(AttrKeyBaseNode):
         for attr_value in self._attr_values:
             summary.add_attr_value(attr_value)
         return summary
+
+    @override
+    def max_depth(self) -> int:
+        if self._attr_value_nodes:
+            return self.depth() + 1
+        return self.depth()
+
+    def node_depths(self) -> Generator[NodeDepth]:
+        if not self.is_recovered():
+            return
+        yield NodeDepth(self.depth(), NodeType.NAME)
+        if self._attr_value_nodes:
+            for attr_value_node in self._attr_value_nodes:
+                yield from attr_value_node.node_depths()
