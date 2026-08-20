@@ -80,7 +80,7 @@ def _node_depths(tag: Tag, depth: int) -> Generator[NodeDepth]:
         elif isinstance(child, Tag):
             yield from _node_depths(child, depth + 1)
 
-    for attr_name, attr_value in tag.attrs.items():
+    for attr_value in tag.attrs.values():
         # We don't call `.items()` here because we dont actually care about
         # specific attribute names here, just the number of attribute names
         # (and the number of corresponding values).

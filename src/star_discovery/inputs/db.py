@@ -66,7 +66,7 @@ class Database:
     def __str__(self) -> str:
         return (
             f"STAR-Discovery Database: (# documents: {len(self._documents)}, "
-            f"# threshold: {self.threshold}, version: {self.version}, "
+            f"threshold: {self.threshold}, version: {self.version}, "
             f"# recovered keys: {len(self._key_store.recovered_keys())}, "
             f"# recovered nodes: {self.total_recovered_nodes()})"
         )
