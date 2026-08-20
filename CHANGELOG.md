@@ -8,6 +8,12 @@ Add `--depth` option for the `info` subcommand, to print information about
 the recovery rates in each document by depth (i.e., the percentage of nodes
 recovered with depth 1, 2, 3, etc.).
 
+Re-added [`tabulate`](https://pypi.org/project/tabulate/) dependency for handle
+the formatting for printing tables with the `info` subcommand.
+
+Remove `requirements.txt` and `dev-requirements.txt`, and commit to using
+"pyproject.toml" as the sole "source of truth" for dependencies and versions.
+
 0.2.3
 ---
 

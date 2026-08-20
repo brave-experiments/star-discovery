@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 class AttrValueNode(BaseNode):
     SEGMENT_PREFIX: ClassVar[str] = "attr-value"
     _parent: AttrKeyBaseNode
+    _has_been_depthed: bool = False
 
     def __init__(self, depth: int, parent: AttrKeyBaseNode, attr_value: str):
         self._attr_name = parent._value

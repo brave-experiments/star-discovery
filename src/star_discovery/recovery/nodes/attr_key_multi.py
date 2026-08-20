@@ -109,6 +109,7 @@ class AttrKeyMultiNode(AttrKeyBaseNode):
     def node_depths(self) -> Generator[NodeDepth]:
         if not self.is_recovered():
             return
+
         yield NodeDepth(self.depth(), NodeType.NAME)
         if self._attr_value_nodes:
             for attr_value_node in self._attr_value_nodes:

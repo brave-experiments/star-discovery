@@ -208,6 +208,7 @@ class HTMLElementBaseNode(HTMLBaseNode, ABC):
     def node_depths(self) -> Generator[NodeDepth]:
         if not self.is_recovered():
             return
+
         yield NodeDepth(self.depth(), NodeType.HTML)
         for child_node in self._child_nodes:
             yield from child_node.node_depths()

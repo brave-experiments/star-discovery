@@ -4,6 +4,7 @@ import argparse
 from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 import json
+import math
 from typing import TYPE_CHECKING
 
 from tabulate import tabulate
@@ -83,11 +84,13 @@ def validate(args: Namespace) -> InfoArgs:
 
 
 def _depth_table_cell(
-    node_type: NodeType | Literal["total"],
     source: NodeTypeCount,
     recovered: NodeTypeCount,
+    node_type: NodeType | None = None,
 ) -> str:
-    if node_type == "total":
+    # Use `node_type == None` to indicate we should calculate the total for
+    # all node types.
+    if node_type is None:
         source_amt = source.total()
         recovered_amt = recovered.total()
     else:
@@ -103,8 +106,6 @@ def _depth_table_cell(
     else:
         recovered_pct_cell = "-"
     return f"{recovered_amt} / {source_amt} ({recovered_pct_cell})"
-
-
 
 
 def depth_info_as_table(doc: Document) -> str:
@@ -135,21 +136,21 @@ def depth_info_as_table(doc: Document) -> str:
 
         row = [
             str(depth_index),
-            _depth_table_cell(NodeType.HTML, source_row, recovered_row),
-            _depth_table_cell(NodeType.TEXT, source_row, recovered_row),
-            _depth_table_cell(NodeType.NAME, source_row, recovered_row),
-            _depth_table_cell(NodeType.VALUE, source_row, recovered_row),
-            _depth_table_cell("total", source_row, recovered_row),
+            _depth_table_cell(source_row, recovered_row, NodeType.HTML),
+            _depth_table_cell(source_row, recovered_row, NodeType.TEXT),
+            _depth_table_cell(source_row, recovered_row, NodeType.NAME),
+            _depth_table_cell(source_row, recovered_row, NodeType.VALUE),
+            _depth_table_cell(source_row, recovered_row),
         ]
         body_rows.append(row)
 
     totals_row = [
         "total",
-        _depth_table_cell(NodeType.HTML, source_totals_row, recovered_totals_row),
-        _depth_table_cell(NodeType.TEXT, source_totals_row, recovered_totals_row),
-        _depth_table_cell(NodeType.NAME, source_totals_row, recovered_totals_row),
-        _depth_table_cell(NodeType.VALUE, source_totals_row, recovered_totals_row),
-        _depth_table_cell("total", source_totals_row, recovered_totals_row),
+        _depth_table_cell(source_totals_row, recovered_totals_row, NodeType.HTML),
+        _depth_table_cell(source_totals_row, recovered_totals_row, NodeType.TEXT),
+        _depth_table_cell(source_totals_row, recovered_totals_row, NodeType.NAME),
+        _depth_table_cell(source_totals_row, recovered_totals_row, NodeType.VALUE),
+        _depth_table_cell(source_totals_row, recovered_totals_row),
     ]
     body_rows.append(totals_row)
     return tabulate(body_rows, headers=header_row, colglobalalign="right")
@@ -160,7 +161,7 @@ def _depth_json_cell(
 ) -> JsonData:
     source_amt = source[node_type]
     recovered_amt = recovered[node_type]
-    recovered_pct = recovered_amt / float(source_amt) if source_amt else "-"
+    recovered_pct = recovered_amt / float(source_amt) if source_amt else math.nan
     return {
         JSON_SOURCE_KEY: source_amt,
         JSON_RECOVERED_KEY: recovered_amt,
@@ -291,7 +292,10 @@ def summary_as_json(summary: RecoverySummary) -> JsonData:
 
     source_total = sum(x[JSON_SOURCE_KEY] for x in data.values())
     recovered_total = sum(x[JSON_RECOVERED_KEY] for x in data.values())
-    recovered_rate_total = recovered_total / float(source_total)
+    if source_total > 0:
+        recovered_rate_total = recovered_total / float(source_total)
+    else:
+        recovered_rate_total = math.nan
 
     data["total"] = {
         JSON_SOURCE_KEY: source_total,
@@ -336,7 +340,6 @@ def run_table_format(args: InfoArgs, indexes: list[int]) -> int:
     for an_index in indexes:
         doc = documents[an_index - 1]
         print(str(doc))
-        print("---")
         if show_depths_info:
             print(depth_info_as_table(doc))
         else:

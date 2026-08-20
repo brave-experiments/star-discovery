@@ -53,6 +53,10 @@ class HTMLElementRootNode(HTMLElementBaseNode):
     def get_root_node(self) -> HTMLElementRootNode:
         return self
 
+    @override
+    def depth(self) -> int:
+        return 0
+
     def get_tag_to_index_cache(self) -> TagToIndexCache:
         if self._tag_to_index_cache is not None:
             return self._tag_to_index_cache

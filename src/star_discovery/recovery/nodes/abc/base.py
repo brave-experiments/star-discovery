@@ -70,7 +70,7 @@ class BaseNode(ABC):
         raise NotImplementedError("source_summary", self)
 
     def depth(self) -> int:
-        if self._depth is None:
+        if not hasattr(self, "_depth") or self._depth is None:
             assert self._parent
             self._depth = self._parent.depth() + 1
         return self._depth

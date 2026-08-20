@@ -55,11 +55,14 @@ def _max_depth(tag: Tag, depth: int) -> NodeDepth:
 
     for attr_name, attr_value in tag.attrs.items():
         local_max = _max(NodeDepth(depth + 1, NodeType.NAME), local_max)
-        if isinstance(attr_value, NavigableString) and len(attr_value.strip()) > 0:
+        if isinstance(attr_value, NavigableString):
             local_max = _max(NodeDepth(depth + 2, NodeType.VALUE), local_max)
         elif isinstance(attr_value, AttributeValueList):
             for a_value in attr_value:
                 local_max = _max(NodeDepth(depth + 2, NodeType.VALUE), local_max)
+                # Early break here because all the values will have the same
+                # depth, and so need to iterate over all of them (since that'd
+                # just end up emitting identical values).
                 break
     return local_max
 
@@ -70,6 +73,7 @@ def max_depth(html: BeautifulSoup) -> NodeDepth:
 
 def _node_depths(tag: Tag, depth: int) -> Generator[NodeDepth]:
     yield NodeDepth(depth, NodeType.HTML)
+
     for child in tag.children:
         if isinstance(child, NavigableString) and len(child.strip()) > 0:
             yield NodeDepth(depth + 1, NodeType.TEXT)
@@ -77,8 +81,11 @@ def _node_depths(tag: Tag, depth: int) -> Generator[NodeDepth]:
             yield from _node_depths(child, depth + 1)
 
     for attr_name, attr_value in tag.attrs.items():
+        # We don't call `.items()` here because we dont actually care about
+        # specific attribute names here, just the number of attribute names
+        # (and the number of corresponding values).
         yield NodeDepth(depth + 1, NodeType.NAME)
-        if isinstance(attr_value, NavigableString) and len(attr_value.strip()) > 0:
+        if isinstance(attr_value, str):
             yield NodeDepth(depth + 2, NodeType.VALUE)
         elif isinstance(attr_value, AttributeValueList):
             for a_value in attr_value:

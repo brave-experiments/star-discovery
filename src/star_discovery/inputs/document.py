@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from math import inf
+from math import nan
 from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
@@ -28,7 +28,7 @@ class RecoverySummary:
                 self.source.html_node_count()
             )
         except ZeroDivisionError:
-            return inf
+            return nan
 
     def text_node_recovery_pct(self) -> float:
         try:
@@ -36,7 +36,7 @@ class RecoverySummary:
                 self.source.text_node_count()
             )
         except ZeroDivisionError:
-            return inf
+            return nan
 
     def attr_name_recovery_pct(self) -> float:
         try:
@@ -44,7 +44,7 @@ class RecoverySummary:
                 self.source.attr_name_count()
             )
         except ZeroDivisionError:
-            return inf
+            return nan
 
     def attr_value_recovery_pct(self) -> float:
         try:
@@ -52,7 +52,7 @@ class RecoverySummary:
                 self.source.attr_value_count()
             )
         except ZeroDivisionError:
-            return inf
+            return nan
 
 
 class Document:
