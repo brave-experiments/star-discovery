@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Depth Test</title>
+</head>
+<body depth-two-attribute="depth-three-value">
+    depth 2 text node
+    <span>depth 3 text node</span>
+    <div depth="2">
+        <span depth="3">
+            <span depth="4">
+                <span depth="5">
+                    <span depth="6">
+                        <span depth="7">
+                            <span depth="8">
+                                <span>
+                                    depth 10 text node (recovered)
+                                </span>
+                            </span>
+                        </span>
+                    </span>
+                </span>
+            </span>
+        </span>
+    </div>
+
+    <span depth="2">
+        <span depth="3">
+            <span depth="4">
+                <span depth="5">
+                    <span depth="6">
+                        <span depth="7">
+                            <span>
+                                depth 9 text node (not recovered)
+                            </span>
+                        </span>
+                    </span>
+                </span>
+            </span>
+        </span>
+    </span>
+</body>
+</html>

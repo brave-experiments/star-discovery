@@ -75,16 +75,19 @@ class Document:
             f"({self.pct_recovered()}%)"
         )
 
-    def depth(self) -> int:
-        """Returns the maximum length from the root node in the HTML document
-        to a leaf node."""
-        return self._recovery_doc.depth()
-
     def summary(self, logger: Logger | None = None) -> RecoverySummary:
         return RecoverySummary(self.recovered_summary(logger), self.source_summary())
 
+    def source_depth(self) -> int:
+        """Returns the maximum length from the root node in the HTML document
+        to a leaf node."""
+        return self._recovery_doc.source_depth()
+
     def recovered_depths_summary(self) -> DepthSummary:
         return self._recovery_doc.recovered_depths_summary()
+
+    def recovered_depth(self) -> int:
+        return self._recovery_doc.recovered_depth()
 
     def source_depths_summary(self) -> DepthSummary:
         return self._recovery_doc.source_depths_summary()

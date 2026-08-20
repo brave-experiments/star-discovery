@@ -89,7 +89,7 @@ class HTMLElementRootNode(HTMLElementBaseNode):
     def source_depth(self) -> int:
         return max_depth(self._html).depth
 
-    def recovery_depth(self) -> int:
+    def recovered_depth(self) -> int:
         return self.max_depth()
 
     def source_depths_summary(self) -> DepthSummary:

@@ -50,10 +50,13 @@ class Document:
             f"of {self.source_summary().total()} nodes."
         )
 
-    def depth(self) -> int:
+    def source_depth(self) -> int:
         """Returns the maximum length from the root node in the HTML document
         to a leaf node."""
         return self._root_node.source_depth()
+
+    def recovered_depth(self) -> int:
+        return self._root_node.recovered_depth()
 
     def source_depths_summary(self) -> DepthSummary:
         return self._root_node.source_depths_summary()
